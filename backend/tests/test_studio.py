@@ -92,6 +92,7 @@ def test_studio_project_flow(tmp_path):
         assert compiled_payload["artifacts"]["runtime_mode"]["effective_mode"] == "no-llm"
         assert len(compiled_payload["artifacts"]["agents"]) == 9
         assert len(compiled_payload["exports"]) == 5
+        assert compiled_payload["project"]["submission_readiness"]["ready_for_export"] is True
 
         local_llm_request = client.put(
             f"/api/v1/studio/projects/{slug}",
@@ -146,6 +147,67 @@ def test_studio_project_flow(tmp_path):
         )
         assert imported.status_code == 201
         assert imported.json()["title"] == "Imported Water Justice Exhibit"
+
+
+def test_studio_export_quality_gates_block_final_exports(tmp_path):
+    settings = Settings(
+        db_path=tmp_path / "studio-gates.sqlite3",
+        workflow_scheduler_enabled=False,
+        admin_password="mlk-admin-demo",
+        studio_root_dir=tmp_path / "studio_workspace",
+        studio_template_dir=tmp_path / "templates",
+        community_root_dir=tmp_path / "community",
+    )
+    app = create_app(settings)
+
+    with TestClient(app) as client:
+        create = client.post(
+            "/api/v1/studio/projects",
+            json={
+                "title": "Blocked Export Project",
+                "summary": "A project used to verify quality gates.",
+                "topic": "Local archive research",
+                "audience": "High school students",
+                "goals": ["Compare sources"],
+                "rubric": ["Evidence", "Clarity"],
+                "template_id": "research-portfolio",
+                "local_mode": "no-llm",
+            },
+        )
+        assert create.status_code == 201
+        slug = create.json()["slug"]
+
+        upload = client.post(
+            f"/api/v1/studio/projects/{slug}/documents",
+            files={"file": ("archive-notes.txt", b"Students compared archival notes, letters, and local meeting records from 2024.", "text/plain")},
+        )
+        assert upload.status_code == 200
+
+        app.state.studio_service.update_project(
+            slug,
+            {
+                "quality_gates": {
+                    "min_citation_coverage": 100.0,
+                    "min_overall_score": 99.0,
+                    "min_rubric_score": 99.0,
+                    "min_documents": 1,
+                    "require_no_pending_approvals": True,
+                }
+            },
+        )
+
+        compiled = client.post(f"/api/v1/studio/projects/{slug}/compile", json={})
+        assert compiled.status_code == 200
+        payload = compiled.json()
+        assert payload["project"]["submission_readiness"]["ready_for_export"] is False
+        assert payload["workflow_results"][-1]["status"] == "blocked"
+        assert [item["export_type"] for item in payload["exports"]] == ["rubric_report"]
+
+        static_site = client.get(f"/api/v1/studio/projects/{slug}/download/static_site")
+        assert static_site.status_code == 403
+
+        rubric_report = client.get(f"/api/v1/studio/projects/{slug}/download/rubric_report")
+        assert rubric_report.status_code == 200
 
 
 def test_studio_provider_ai_flow(tmp_path, monkeypatch):

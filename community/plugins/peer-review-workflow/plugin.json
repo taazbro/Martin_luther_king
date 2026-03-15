@@ -1,0 +1,7 @@
+{
+  "id": "peer-review-workflow",
+  "label": "Peer Review Workflow Pack",
+  "version": "0.1.0",
+  "description": "Adds classroom-safe peer pairing, moderation cues, and rubric-guided review helpers.",
+  "capabilities": ["teacher_review", "rubrics", "metadata"]
+}

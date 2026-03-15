@@ -456,10 +456,14 @@ class ProjectStudioService:
         self.template_registry = template_registry
         self.agent_runtime = agent_runtime
         self.ai_provider_service = ai_provider_service
+        self.education_service: Any | None = None
         self.projects_dir = settings.studio_root_dir / "projects"
         self.projects_dir.mkdir(parents=True, exist_ok=True)
         self._indices: dict[str, WorkspaceIndex] = {}
         self._rebuild_all_indices()
+
+    def bind_education_service(self, education_service: Any) -> None:
+        self.education_service = education_service
 
     def get_overview(self) -> dict[str, Any]:
         projects = self.list_projects()
@@ -632,6 +636,9 @@ class ProjectStudioService:
             ),
             "revision_history": [],
             "plugin_ids": [plugin["id"] for plugin in self.template_registry.list_plugins()],
+            "classroom_context": dict(payload.get("classroom_context") or {}),
+            "quality_gates": self._quality_gate_defaults(),
+            "submission_readiness": self._empty_submission_readiness(),
         }
         self._record_revision(manifest, action="created", summary="Project manifest created from starter wizard.", actor="system")
 
@@ -654,7 +661,19 @@ class ProjectStudioService:
 
     def update_project(self, slug: str, payload: dict[str, Any]) -> dict[str, Any]:
         manifest = self._load_manifest(slug)
-        editable_fields = {"title", "summary", "topic", "audience", "goals", "rubric", "local_mode", "theme_tokens", "ai_profile_id"}
+        editable_fields = {
+            "title",
+            "summary",
+            "topic",
+            "audience",
+            "goals",
+            "rubric",
+            "local_mode",
+            "theme_tokens",
+            "ai_profile_id",
+            "classroom_context",
+            "quality_gates",
+        }
         for field in editable_fields:
             if field in payload:
                 manifest[field] = (
@@ -952,6 +971,11 @@ class ProjectStudioService:
                 goals=manifest.get("goals", []),
                 rubric=manifest.get("rubric", []),
             )
+        manifest["submission_readiness"] = self._evaluate_submission_readiness(
+            slug=slug,
+            manifest=manifest,
+            artifact_bundle=artifact_bundle,
+        )
 
         exports = manifest.get("exports", [])
         for stage in workflow_stages:
@@ -971,10 +995,21 @@ class ProjectStudioService:
                 stage_results.append({"stage_id": "design", "status": "success", "details": {"theme_tokens": len(template["theme_tokens"])}})
             elif stage["stage_id"] == "export":
                 exports = self.export_project(slug, template=template, manifest=manifest, artifact_bundle=artifact_bundle)
-                stage_results.append({"stage_id": "export", "status": "success", "details": {"exports": len(exports)}})
+                export_status = "success" if manifest["submission_readiness"]["ready_for_export"] else "blocked"
+                stage_results.append(
+                    {
+                        "stage_id": "export",
+                        "status": export_status,
+                        "details": {
+                            "exports": len(exports),
+                            "ready_for_export": manifest["submission_readiness"]["ready_for_export"],
+                            "blocking_reasons": manifest["submission_readiness"]["blocking_reasons"],
+                        },
+                    }
+                )
 
         manifest["exports"] = exports
-        manifest["status"] = "compiled"
+        manifest["status"] = "compiled" if manifest["submission_readiness"]["ready_for_export"] else "compiled_blocked"
         manifest["workflow"] = {"stages": workflow_stages}
         manifest["updated_at"] = self._timestamp()
         self._record_revision(
@@ -1013,38 +1048,64 @@ class ProjectStudioService:
         project_dir = self.projects_dir / slug
         export_dir = project_dir / "exports"
         export_dir.mkdir(parents=True, exist_ok=True)
+        readiness = self._evaluate_submission_readiness(slug=slug, manifest=manifest, artifact_bundle=artifact_bundle)
+        manifest["submission_readiness"] = readiness
 
         exports = []
-        static_path = export_dir / f"{slug}-site.html"
-        static_path.write_text(self._render_static_site(manifest, template, artifact_bundle), encoding="utf-8")
-        exports.append(self._export_record("static_site", static_path, project_dir))
-
-        react_dir = export_dir / f"{slug}-react"
-        react_dir.mkdir(parents=True, exist_ok=True)
-        self._write_react_export(react_dir, manifest, artifact_bundle)
-        exports.append(self._export_record("react_app", react_dir / "README.md", project_dir, directory="exports/" + react_dir.name))
-
-        pdf_path = export_dir / f"{slug}-report.pdf"
-        self._write_pdf_report(pdf_path, manifest, artifact_bundle)
-        exports.append(self._export_record("pdf_report", pdf_path, project_dir))
-
         rubric_path = export_dir / f"{slug}-rubric-report.md"
         self._write_rubric_report(rubric_path, manifest, artifact_bundle)
         exports.append(self._export_record("rubric_report", rubric_path, project_dir))
+        if readiness["ready_for_export"]:
+            static_path = export_dir / f"{slug}-site.html"
+            static_path.write_text(self._render_static_site(manifest, template, artifact_bundle), encoding="utf-8")
+            exports.append(self._export_record("static_site", static_path, project_dir))
 
-        bundle_path = export_dir / f"{slug}.cpsbundle"
-        self._write_project_bundle(project_dir, bundle_path)
-        exports.append(self._export_record("project_bundle", bundle_path, project_dir))
+            react_dir = export_dir / f"{slug}-react"
+            react_dir.mkdir(parents=True, exist_ok=True)
+            self._write_react_export(react_dir, manifest, artifact_bundle)
+            exports.append(self._export_record("react_app", react_dir / "README.md", project_dir, directory="exports/" + react_dir.name))
+
+            pdf_path = export_dir / f"{slug}-report.pdf"
+            self._write_pdf_report(pdf_path, manifest, artifact_bundle)
+            exports.append(self._export_record("pdf_report", pdf_path, project_dir))
+
+            bundle_path = export_dir / f"{slug}.cpsbundle"
+            self._write_project_bundle(project_dir, bundle_path)
+            exports.append(self._export_record("project_bundle", bundle_path, project_dir))
+            self.warehouse.record_event(
+                event_type="project_export",
+                source="studio_service",
+                learner_id=slug,
+                payload={"export_types": [export["export_type"] for export in exports]},
+            )
+        else:
+            self.warehouse.record_event(
+                event_type="project_export_blocked",
+                source="studio_service",
+                learner_id=slug,
+                payload={"blocking_reasons": readiness["blocking_reasons"]},
+            )
 
         return exports
 
     def get_export_path(self, slug: str, export_type: str) -> Path:
         manifest = self._load_manifest(slug)
+        readiness = manifest.get("submission_readiness") or self._evaluate_submission_readiness(slug=slug, manifest=manifest)
+        protected_exports = set(readiness.get("export_policy", {}).get("protected_export_types", []))
+        if export_type in protected_exports and not readiness.get("ready_for_export", False):
+            raise PermissionError("; ".join(readiness.get("blocking_reasons", [])))
         project_dir = self.projects_dir / slug
         for export in manifest.get("exports", []):
             if export["export_type"] == export_type:
                 return project_dir / export["path"]
         raise FileNotFoundError(export_type)
+
+    def get_submission_readiness(self, slug: str) -> dict[str, Any]:
+        manifest = self._load_manifest(slug)
+        readiness = manifest.get("submission_readiness") or self._evaluate_submission_readiness(slug=slug, manifest=manifest)
+        manifest["submission_readiness"] = readiness
+        self._write_manifest(slug, manifest)
+        return readiness
 
     def get_artifact_bundle(self, slug: str) -> dict[str, Any] | None:
         self._load_manifest(slug)
@@ -1068,6 +1129,7 @@ class ProjectStudioService:
             "export_count": len(manifest["exports"]),
             "documents": manifest["documents"],
             "exports": manifest["exports"],
+            "submission_readiness": manifest.get("submission_readiness", self._empty_submission_readiness()),
             "updated_at": manifest["updated_at"],
         }
 
@@ -1100,7 +1162,149 @@ class ProjectStudioService:
         manifest.setdefault("revision_history", [])
         manifest.setdefault("standards_alignment", [])
         manifest.setdefault("ai_profile_id", "")
+        manifest.setdefault("classroom_context", {})
+        manifest.setdefault("quality_gates", self._quality_gate_defaults())
+        manifest.setdefault("submission_readiness", self._empty_submission_readiness())
         return manifest
+
+    def _quality_gate_defaults(self) -> dict[str, Any]:
+        return {
+            "min_citation_coverage": 75.0,
+            "min_overall_score": 70.0,
+            "min_rubric_score": 65.0,
+            "min_documents": 1,
+            "require_no_pending_approvals": True,
+        }
+
+    def _empty_submission_readiness(self) -> dict[str, Any]:
+        return {
+            "status": "draft",
+            "ready_for_export": False,
+            "progress_state": "not_started",
+            "blocking_reasons": ["Compile the project to calculate readiness."],
+            "recommendations": ["Run the project workflow before exporting."],
+            "metrics": {
+                "citation_coverage": 0.0,
+                "overall_score": 0.0,
+                "min_rubric_score": 0.0,
+                "document_count": 0,
+                "pending_approvals": 0,
+                "export_count": 0,
+            },
+            "gates": self._quality_gate_defaults(),
+            "export_policy": {
+                "protected_export_types": ["static_site", "react_app", "pdf_report", "project_bundle"],
+                "always_allowed_export_types": ["rubric_report"],
+            },
+        }
+
+    def _evaluate_submission_readiness(
+        self,
+        *,
+        slug: str,
+        manifest: dict[str, Any],
+        artifact_bundle: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        artifact_bundle = artifact_bundle or self._load_artifact_bundle(slug)
+        gates = {**self._quality_gate_defaults(), **dict(manifest.get("quality_gates") or {})}
+        teacher_review = dict((artifact_bundle or {}).get("artifacts", {}).get("teacher_review") or manifest.get("teacher_review") or {})
+        rubric_scores = teacher_review.get("rubric_scores", []) if isinstance(teacher_review.get("rubric_scores", []), list) else []
+        overall_score = float(teacher_review.get("overall_score") or 0.0)
+        min_rubric_score = min((float(item.get("score") or 0.0) for item in rubric_scores), default=0.0)
+        citation_map = (
+            dict((artifact_bundle or {}).get("artifacts", {}).get("citation_map") or {}).get("citation_map", [])
+            if artifact_bundle
+            else []
+        )
+        total_sections = max(1, len(citation_map) or len(manifest.get("sections", [])))
+        cited_sections = sum(1 for entry in citation_map if entry.get("citations"))
+        citation_coverage = round((cited_sections / total_sections) * 100.0, 1)
+        pending_approvals = self._pending_project_approvals(slug)
+        document_count = len(manifest.get("documents", []))
+        export_count = len(manifest.get("exports", []))
+
+        blocking_reasons: list[str] = []
+        if document_count < int(gates["min_documents"]):
+            blocking_reasons.append("Upload at least one approved source before exporting.")
+        if citation_coverage < float(gates["min_citation_coverage"]):
+            blocking_reasons.append("Citation coverage is below the export threshold.")
+        if overall_score < float(gates["min_overall_score"]):
+            blocking_reasons.append("Teacher review score is below the export threshold.")
+        if min_rubric_score < float(gates["min_rubric_score"]):
+            blocking_reasons.append("At least one rubric criterion is still below the minimum score.")
+        if bool(gates["require_no_pending_approvals"]) and pending_approvals:
+            blocking_reasons.append("Pending approvals must be resolved before final export.")
+
+        ready_for_export = not blocking_reasons
+        progress_state = self._progress_state(
+            ready_for_export=ready_for_export,
+            export_count=export_count,
+            pending_approvals=pending_approvals,
+            document_count=document_count,
+            artifact_bundle=artifact_bundle,
+        )
+        recommendations = (
+            [
+                "Resolve the pending approval queue and rerun compile.",
+                "Strengthen sections with missing citations.",
+                "Revise low-scoring rubric criteria before publishing.",
+            ]
+            if blocking_reasons
+            else ["All quality gates passed. Final exports and family-safe sharing are unlocked."]
+        )
+        return {
+            "status": "ready" if ready_for_export else "blocked",
+            "ready_for_export": ready_for_export,
+            "progress_state": progress_state,
+            "blocking_reasons": blocking_reasons,
+            "recommendations": recommendations,
+            "metrics": {
+                "citation_coverage": citation_coverage,
+                "overall_score": round(overall_score, 1),
+                "min_rubric_score": round(min_rubric_score, 1),
+                "document_count": document_count,
+                "pending_approvals": pending_approvals,
+                "export_count": export_count,
+            },
+            "gates": gates,
+            "export_policy": {
+                "protected_export_types": ["static_site", "react_app", "pdf_report", "project_bundle"],
+                "always_allowed_export_types": ["rubric_report"],
+            },
+        }
+
+    def _pending_project_approvals(self, slug: str) -> int:
+        if self.education_service is None:
+            return 0
+        approvals = self.education_service.list_approvals()
+        return len(
+            [
+                approval
+                for approval in approvals
+                if approval.get("project_slug") == slug and approval.get("status") == "pending"
+            ]
+        )
+
+    def _progress_state(
+        self,
+        *,
+        ready_for_export: bool,
+        export_count: int,
+        pending_approvals: int,
+        document_count: int,
+        artifact_bundle: dict[str, Any] | None,
+    ) -> str:
+        if export_count and ready_for_export:
+            return "exported"
+        if ready_for_export:
+            return "ready_for_export"
+        if pending_approvals:
+            return "under_review"
+        if artifact_bundle:
+            return "drafting"
+        if document_count:
+            return "researching"
+        return "not_started"
 
     def _normalize_ai_profile_id(self, value: Any) -> str:
         raw_value = str(value or "").strip()

@@ -212,6 +212,7 @@ class ProjectAgentRuntime:
     ) -> dict[str, Any]:
         requested_mode = str(manifest.get("local_mode", "no-llm"))
         profile_id = str(manifest.get("ai_profile_id") or "").strip()
+        classroom_id = str((manifest.get("classroom_context") or {}).get("classroom_id") or "")
         if requested_mode != "provider-ai":
             return {"used": False, "error": ""}
         if not profile_id:
@@ -234,6 +235,7 @@ class ProjectAgentRuntime:
                 f"{context} Rewrite this project brief into a concise, cited-ready research brief for students. "
                 f"Draft brief: {research['executive_summary']}"
             ),
+            classroom_id=classroom_id,
         )
         if not research_result["used"]:
             return research_result
@@ -255,6 +257,7 @@ class ProjectAgentRuntime:
                     f"{context} Rewrite this section for clarity, evidence-grounding, and student readability. "
                     f"Keep it under 140 words. Section: {section['title']}. Draft: {section['body']}"
                 ),
+                classroom_id=classroom_id,
             )
             if section_result["used"]:
                 section["body"] = section_result["output_text"]
@@ -270,6 +273,7 @@ class ProjectAgentRuntime:
                 f"{context} Produce one concise teacher coaching note for this draft. "
                 f"Current teacher note seed: {teacher['teacher_notes'][0]}"
             ),
+            classroom_id=classroom_id,
         )
         if review_result["used"]:
             teacher["teacher_notes"][0] = review_result["output_text"]

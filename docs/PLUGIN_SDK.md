@@ -6,6 +6,8 @@ Plugins extend EduClawn without modifying the core engine.
 
 Store plugins under `community/plugins/<plugin-id>/plugin.json`.
 
+Each plugin can also ship a `README.md` in the same folder describing install and workflow expectations.
+
 ## Minimal Manifest
 
 ```json
@@ -44,3 +46,4 @@ Store plugins under `community/plugins/<plugin-id>/plugin.json`.
 - science fair rubric packs
 - map and timeline export helpers
 - language-learning adaptation packs
+- peer review workflow helpers

@@ -6,6 +6,8 @@ Templates define how EduClawn turns a manifest plus source documents into a stru
 
 Store template manifests in `studio/templates/*.json`.
 
+Starter manifests for template authors can live in `community/template_starters/`.
+
 ## Required Fields
 
 ```json
@@ -78,3 +80,12 @@ After adding a template:
 2. upload at least one document
 3. run compile
 4. verify exports and citations render correctly
+
+## Starter Workflow
+
+If you are authoring a new template for open-source reuse:
+
+1. copy a starter from `community/template_starters/`
+2. create the final template manifest in `studio/templates/`
+3. add one sample project in `community/sample_projects/`
+4. document any companion plugin pack in `community/plugins/`

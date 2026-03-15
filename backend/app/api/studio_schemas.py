@@ -151,6 +151,7 @@ class StudioProjectSummaryResponse(BaseModel):
     export_count: int
     documents: list[ProjectDocumentResponse]
     exports: list[ProjectExportResponse]
+    submission_readiness: dict[str, object]
     updated_at: str
 
 
@@ -187,6 +188,9 @@ class StudioProjectResponse(BaseModel):
     plugin_ids: list[str]
     template: dict[str, object]
     plugins: list[dict[str, object]]
+    classroom_context: dict[str, object]
+    quality_gates: dict[str, object]
+    submission_readiness: dict[str, object]
 
 
 class StudioSearchRequest(BaseModel):

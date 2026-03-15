@@ -17,20 +17,37 @@ import type {
   AIProviderId,
   AIProviderProfile,
   AIUsageEntry,
+  AssignmentAutopilotResponse,
+  AssignmentStatusBoard,
   BenchmarkReportResponse,
+  ClassroomLibrary,
+  ClassroomRoster,
+  ClassroomReplay,
   DesktopContext,
   EducationAgentCatalogEntry,
   EducationAgentRunResponse,
   EducationApproval,
   EducationAuditEntry,
   EducationClassroom,
+  EducationGrowthOverview,
   EducationOverview,
   EducationSafetyStatus,
   EduClawnBootstrapResponse,
   EduClawnOverview,
+  FamilyShareLink,
+  FamilyView,
   HealthStatus,
+  InterventionDashboard,
+  LessonToProjectResponse,
+  MarketplaceResponse,
+  OfflineSchoolEdition,
+  PeerReview,
+  PeerReviewPairings,
   ProjectDraft,
   ProjectSummary,
+  RevisionCoachResponse,
+  RubricTrainResponse,
+  SchoolPackInstallResponse,
   StudioAgentCatalogEntry,
   StudioArtifactBundle,
   StudioCompileResponse,
@@ -41,6 +58,9 @@ import type {
   StudioSearchResult,
   StudioSystemStatus,
   StudioTemplate,
+  StandardsMap,
+  AssessmentPack,
+  CitationVerification,
 } from './types'
 
 const DRAFT_STORAGE_KEY = 'educlawn-draft'
@@ -104,6 +124,58 @@ const defaultEducationAgentDraft = {
   ai_profile_id: '',
 }
 
+const defaultAutopilotDraft = {
+  topic: 'Neighborhood transit access and mobility justice',
+  title: '',
+  summary: '',
+  audience: 'Grade 9 students',
+  template_id: '',
+  goalsText: 'Compare approved sources\nBuild a cited local argument',
+  rubricText: 'Evidence Quality\nCitation Accuracy\nClarity',
+  standardsText: 'C3 Inquiry\nSource Analysis',
+  lessonSeed: 'Use approved maps, resident testimony, and policy memos to build a classroom-safe inquiry workflow.',
+  due_date: '2026-05-01',
+  local_mode: 'no-llm' as 'no-llm' | 'local-llm' | 'provider-ai',
+  ai_profile_id: '',
+}
+
+const defaultRevisionCoachDraft = {
+  draftText: (
+    'Neighborhood transit access is unequal because some families wait longer and walk farther for buses. '
+    + 'Policy memos and resident interviews show that neighborhoods with fewer route investments have slower service.'
+  ),
+  teacherFeedbackText: 'Add one stronger source comparison.\nMake the main claim more explicit.',
+  ai_profile_id: '',
+}
+
+const defaultLessonProjectDraft = {
+  lessonPlan: (
+    'Community Transit Lesson\n'
+    + '- Analyze approved maps and testimony\n'
+    + '- Build a short evidence-backed recommendation\n'
+    + '- Close with an exit ticket'
+  ),
+  title: '',
+  topic: '',
+  audience: '',
+  goalsText: '',
+  rubricText: '',
+  template_id: '',
+  local_mode: 'no-llm' as 'no-llm' | 'local-llm' | 'provider-ai',
+  ai_profile_id: '',
+  seed_from_classroom: true,
+}
+
+const defaultPeerReviewDraft = {
+  draftText: 'The draft uses local evidence, but it needs one clearer citation and a stronger conclusion.',
+  rubricText: 'Evidence Quality\nCitation Accuracy\nClarity',
+}
+
+const defaultPeerReviewResolution = {
+  reviewer: 'Ms. Rivera',
+  note: 'Peer feedback is safe and useful for revision.',
+}
+
 const defaultApprovalReview = {
   reviewer: 'Ms. Rivera',
   note: 'Teacher reviewed. Sensitive external actions still require manual handling.',
@@ -158,7 +230,7 @@ type ExperienceSettings = {
   reducedMotion: boolean
 }
 
-type PageId = 'home' | 'projects' | 'classroom' | 'ai' | 'desktop' | 'advanced'
+type PageId = 'home' | 'projects' | 'classroom' | 'autopilot' | 'ops' | 'family' | 'marketplace' | 'ai' | 'desktop' | 'advanced'
 type ProjectView = 'create' | 'build' | 'review'
 type ClassroomView = 'setup' | 'launch' | 'safety'
 
@@ -189,6 +261,31 @@ function App() {
   const [educationApprovals, setEducationApprovals] = useState<EducationApproval[]>([])
   const [educationAudit, setEducationAudit] = useState<EducationAuditEntry[]>([])
   const [educationSafety, setEducationSafety] = useState<EducationSafetyStatus | null>(null)
+  const [growthOverview, setGrowthOverview] = useState<EducationGrowthOverview | null>(null)
+  const [classroomLibrary, setClassroomLibrary] = useState<ClassroomLibrary | null>(null)
+  const [peerReviews, setPeerReviews] = useState<PeerReview[]>([])
+  const [peerReviewPairs, setPeerReviewPairs] = useState<PeerReviewPairings | null>(null)
+  const [familyView, setFamilyView] = useState<FamilyView | null>(null)
+  const [familyShareLink, setFamilyShareLink] = useState<FamilyShareLink | null>(null)
+  const [interventionDashboard, setInterventionDashboard] = useState<InterventionDashboard | null>(null)
+  const [classroomRoster, setClassroomRoster] = useState<ClassroomRoster | null>(null)
+  const [assignmentStatusBoard, setAssignmentStatusBoard] = useState<AssignmentStatusBoard | null>(null)
+  const [classroomReplay, setClassroomReplay] = useState<ClassroomReplay | null>(null)
+  const [marketplace, setMarketplace] = useState<MarketplaceResponse | null>(null)
+  const [offlineSchoolEdition, setOfflineSchoolEdition] = useState<OfflineSchoolEdition | null>(null)
+  const [autopilotDraft, setAutopilotDraft] = useState(defaultAutopilotDraft)
+  const [revisionCoachDraft, setRevisionCoachDraft] = useState(defaultRevisionCoachDraft)
+  const [lessonProjectDraft, setLessonProjectDraft] = useState(defaultLessonProjectDraft)
+  const [peerReviewDraft, setPeerReviewDraft] = useState(defaultPeerReviewDraft)
+  const [peerReviewResolution, setPeerReviewResolution] = useState(defaultPeerReviewResolution)
+  const [autopilotResult, setAutopilotResult] = useState<AssignmentAutopilotResponse | null>(null)
+  const [revisionCoachResult, setRevisionCoachResult] = useState<RevisionCoachResponse | null>(null)
+  const [citationVerification, setCitationVerification] = useState<CitationVerification | null>(null)
+  const [lessonProjectResult, setLessonProjectResult] = useState<LessonToProjectResponse | null>(null)
+  const [rubricModel, setRubricModel] = useState<RubricTrainResponse | null>(null)
+  const [standardsMap, setStandardsMap] = useState<StandardsMap | null>(null)
+  const [assessmentPack, setAssessmentPack] = useState<AssessmentPack | null>(null)
+  const [lastInstalledPack, setLastInstalledPack] = useState<SchoolPackInstallResponse | null>(null)
   const [educlawnOverview, setEduclawnOverview] = useState<EduClawnOverview | null>(null)
   const [educlawnDraft, setEduclawnDraft] = useState(defaultEduClawnDraft)
   const [educlawnBootstrapResult, setEduclawnBootstrapResult] = useState<EduClawnBootstrapResponse | null>(null)
@@ -283,6 +380,26 @@ function App() {
   const deferredEducationApprovals = useDeferredValue(educationApprovals)
   const deferredEducationAudit = useDeferredValue(educationAudit)
   const deferredEducationSafety = useDeferredValue(educationSafety)
+  const deferredGrowthOverview = useDeferredValue(growthOverview)
+  const deferredClassroomLibrary = useDeferredValue(classroomLibrary)
+  const deferredPeerReviews = useDeferredValue(peerReviews)
+  const deferredPeerReviewPairs = useDeferredValue(peerReviewPairs)
+  const deferredFamilyView = useDeferredValue(familyView)
+  const deferredFamilyShareLink = useDeferredValue(familyShareLink)
+  const deferredInterventionDashboard = useDeferredValue(interventionDashboard)
+  const deferredClassroomRoster = useDeferredValue(classroomRoster)
+  const deferredAssignmentStatusBoard = useDeferredValue(assignmentStatusBoard)
+  const deferredClassroomReplay = useDeferredValue(classroomReplay)
+  const deferredMarketplace = useDeferredValue(marketplace)
+  const deferredOfflineSchoolEdition = useDeferredValue(offlineSchoolEdition)
+  const deferredAutopilotResult = useDeferredValue(autopilotResult)
+  const deferredRevisionCoachResult = useDeferredValue(revisionCoachResult)
+  const deferredCitationVerification = useDeferredValue(citationVerification)
+  const deferredLessonProjectResult = useDeferredValue(lessonProjectResult)
+  const deferredRubricModel = useDeferredValue(rubricModel)
+  const deferredStandardsMap = useDeferredValue(standardsMap)
+  const deferredAssessmentPack = useDeferredValue(assessmentPack)
+  const deferredLastInstalledPack = useDeferredValue(lastInstalledPack)
   const deferredEduclawnOverview = useDeferredValue(educlawnOverview)
   const deferredEduclawnBootstrapResult = useDeferredValue(educlawnBootstrapResult)
   const deferredProject = useDeferredValue(project)
@@ -386,6 +503,101 @@ function App() {
     }
   })
 
+  const refreshGrowth = useEffectEvent(async () => {
+    try {
+      const [overviewResponse, marketplaceResponse, offlineResponse] = await Promise.all([
+        api.educationGrowthOverview(),
+        api.marketplace(),
+        api.offlineSchoolEdition(),
+      ])
+
+      let libraryResponse: ClassroomLibrary | null = null
+      let reviewResponse: PeerReview[] = []
+      let reviewPairsResponse: PeerReviewPairings | null = null
+      let interventionResponse: InterventionDashboard | null = null
+      let rosterResponse: ClassroomRoster | null = null
+      let assignmentStatusResponse: AssignmentStatusBoard | null = null
+      let replayResponse: ClassroomReplay | null = null
+      let standardsResponse: StandardsMap | null = null
+      let familyResponse: FamilyView | null = null
+
+      const teacherOrReviewerKey = selectedClassroomId
+        ? classroomAccessVault[selectedClassroomId]?.teacher_access_key || classroomAccessVault[selectedClassroomId]?.reviewer_access_key || ''
+        : ''
+      const anyAccessKey = selectedClassroomId
+        ? classroomAccessVault[selectedClassroomId]?.teacher_access_key
+            || classroomAccessVault[selectedClassroomId]?.reviewer_access_key
+            || classroomAccessVault[selectedClassroomId]?.student_access_key
+            || ''
+        : ''
+
+      if (selectedClassroomId && teacherOrReviewerKey) {
+        const requests: Array<Promise<unknown>> = [
+          api.classroomLibrary(selectedClassroomId, teacherOrReviewerKey),
+          api.listPeerReviews(selectedClassroomId, teacherOrReviewerKey),
+          api.interventionDashboard(selectedClassroomId, teacherOrReviewerKey),
+          api.classroomRoster(selectedClassroomId, teacherOrReviewerKey),
+          api.assignmentStatusBoard(selectedClassroomId, teacherOrReviewerKey),
+          api.classroomReplay(selectedClassroomId, teacherOrReviewerKey),
+        ]
+
+        if (selectedAssignmentId) {
+          requests.push(api.peerReviewPairs(selectedClassroomId, selectedAssignmentId, teacherOrReviewerKey))
+        }
+
+        if (selectedAssignmentId) {
+          requests.push(api.standardsMap(selectedClassroomId, selectedAssignmentId, teacherOrReviewerKey))
+        }
+
+        if (selectedProjectSlug && anyAccessKey) {
+          requests.push(api.familyView(selectedClassroomId, selectedProjectSlug, anyAccessKey))
+        }
+
+        const results = await Promise.all(requests)
+        libraryResponse = results[0] as ClassroomLibrary
+        reviewResponse = results[1] as PeerReview[]
+        interventionResponse = results[2] as InterventionDashboard
+        rosterResponse = results[3] as ClassroomRoster
+        assignmentStatusResponse = results[4] as AssignmentStatusBoard
+        replayResponse = results[5] as ClassroomReplay
+        reviewPairsResponse = selectedAssignmentId ? (results[6] as PeerReviewPairings) : null
+        standardsResponse = selectedAssignmentId ? (results[selectedAssignmentId ? 7 : 6] as StandardsMap) : null
+        familyResponse = selectedProjectSlug && anyAccessKey
+          ? (results[selectedAssignmentId ? 8 : 6] as FamilyView)
+          : null
+      }
+
+      startTransition(() => {
+        setGrowthOverview(overviewResponse)
+        setMarketplace(marketplaceResponse)
+        setOfflineSchoolEdition(offlineResponse)
+        setClassroomLibrary(libraryResponse)
+        setPeerReviews(reviewResponse)
+        setPeerReviewPairs(reviewPairsResponse)
+        setInterventionDashboard(interventionResponse)
+        setClassroomRoster(rosterResponse)
+        setAssignmentStatusBoard(assignmentStatusResponse)
+        setClassroomReplay(replayResponse)
+        setStandardsMap(standardsResponse)
+        setFamilyView(familyResponse)
+        setFamilyShareLink(
+          familyResponse?.share_link
+            ? {
+                share_token: '',
+                classroom_id: familyResponse.classroom_id,
+                project_slug: familyResponse.project_slug,
+                project_title: familyResponse.project_title,
+                created_at: '',
+                share_url: familyResponse.share_link,
+              }
+            : null,
+        )
+      })
+    } catch (growthError) {
+      setError(getErrorMessage(growthError, 'Failed to load EduClawn growth features.'))
+    }
+  })
+
   const refreshEduClawn = useEffectEvent(async () => {
     try {
       const overviewResponse = await api.educlawnOverview()
@@ -485,6 +697,10 @@ function App() {
   }, [])
 
   useEffect(() => {
+    void refreshGrowth()
+  }, [])
+
+  useEffect(() => {
     void refreshEduClawn()
   }, [])
 
@@ -568,6 +784,10 @@ function App() {
     }
     void refreshEducation()
   }, [classroomAccessVault, selectedClassroomId])
+
+  useEffect(() => {
+    void refreshGrowth()
+  }, [classroomAccessVault, selectedAssignmentId, selectedClassroomId, selectedProjectSlug])
 
   useEffect(() => {
     if (!selectedAiProfileId) {
@@ -1022,6 +1242,355 @@ function App() {
     }
   }
 
+  async function runAssignmentAutopilot(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!selectedClassroomId) {
+      setError('Create or select a classroom before running Assignment Autopilot.')
+      return
+    }
+    const teacherAccessKey = requireClassroomAccess(selectedClassroomId, 'teacher')
+    if (!teacherAccessKey) {
+      return
+    }
+
+    setIsWorking(true)
+    setError(null)
+    setNotice(null)
+
+    try {
+      const result = await api.assignmentAutopilot({
+        classroom_id: selectedClassroomId,
+        access_key: teacherAccessKey,
+        topic: autopilotDraft.topic.trim(),
+        title: autopilotDraft.title.trim(),
+        summary: autopilotDraft.summary.trim(),
+        audience: autopilotDraft.audience.trim(),
+        template_id: autopilotDraft.template_id,
+        goals: linesToArray(autopilotDraft.goalsText),
+        rubric: linesToArray(autopilotDraft.rubricText),
+        standards: linesToArray(autopilotDraft.standardsText),
+        lesson_seed: autopilotDraft.lessonSeed.trim(),
+        due_date: autopilotDraft.due_date.trim(),
+        local_mode: autopilotDraft.local_mode,
+        ai_profile_id: autopilotDraft.ai_profile_id,
+      })
+      await Promise.all([refreshEducation(), refreshGrowth(), refreshStudio(false)])
+      setSelectedClassroomId(result.classroom.classroom_id)
+      setSelectedAssignmentId(result.assignment.assignment_id)
+      startTransition(() => {
+        setAutopilotResult(result)
+        setAssessmentPack(result.assessment_pack)
+        setStandardsMap(result.standards_map)
+      })
+      setActivePage('autopilot')
+      setNotice(`Assignment Autopilot created ${result.assignment.title}.`)
+    } catch (autopilotError) {
+      setError(getErrorMessage(autopilotError, 'Failed to run Assignment Autopilot.'))
+    } finally {
+      setIsWorking(false)
+    }
+  }
+
+  async function runRevisionCoach() {
+    if (!selectedClassroomId || !selectedAssignmentId) {
+      setError('Select a classroom and assignment before running the Revision Coach.')
+      return
+    }
+    const accessKey = requireRoleAccess(selectedClassroomId, experienceSettings.profile === 'student' ? 'student' : 'teacher')
+    if (!accessKey) {
+      return
+    }
+
+    setIsWorking(true)
+    setError(null)
+    setNotice(null)
+
+    try {
+      const result = await api.revisionCoach({
+        classroom_id: selectedClassroomId,
+        assignment_id: selectedAssignmentId,
+        access_key: accessKey,
+        draft_text: revisionCoachDraft.draftText.trim(),
+        rubric: selectedAssignment?.rubric ?? linesToArray(assignmentDraft.rubricText),
+        teacher_feedback: linesToArray(revisionCoachDraft.teacherFeedbackText),
+        project_slug: selectedProjectSlug || undefined,
+        ai_profile_id: revisionCoachDraft.ai_profile_id || undefined,
+      })
+      startTransition(() => {
+        setRevisionCoachResult(result)
+        setCitationVerification(result.citation_verification)
+      })
+      await refreshGrowth()
+      setNotice('Student Revision Coach produced concrete next steps.')
+    } catch (revisionError) {
+      setError(getErrorMessage(revisionError, 'Failed to run the Student Revision Coach.'))
+    } finally {
+      setIsWorking(false)
+    }
+  }
+
+  async function runCitationVerifier() {
+    if (!selectedProjectSlug) {
+      setError('Select or launch a project before verifying citations.')
+      return
+    }
+    setIsWorking(true)
+    setError(null)
+    setNotice(null)
+
+    try {
+      const claims = linesToArray(revisionCoachDraft.draftText)
+      const result = await api.citationVerify({
+        project_slug: selectedProjectSlug,
+        claims,
+      })
+      startTransition(() => {
+        setCitationVerification(result)
+      })
+      setNotice(result.ready_for_export ? 'All claims are grounded in uploaded evidence.' : 'Some claims still need approved evidence before export.')
+    } catch (verifyError) {
+      setError(getErrorMessage(verifyError, 'Failed to verify citations.'))
+    } finally {
+      setIsWorking(false)
+    }
+  }
+
+  async function runLessonToProject(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const teacherAccessKey = selectedClassroomId ? requireClassroomAccess(selectedClassroomId, 'teacher') : null
+    if (selectedClassroomId && !teacherAccessKey) {
+      return
+    }
+
+    setIsWorking(true)
+    setError(null)
+    setNotice(null)
+
+    try {
+      const result = await api.lessonToProject({
+        lesson_plan: lessonProjectDraft.lessonPlan.trim(),
+        title: lessonProjectDraft.title.trim() || undefined,
+        topic: lessonProjectDraft.topic.trim() || undefined,
+        audience: lessonProjectDraft.audience.trim() || undefined,
+        goals: linesToArray(lessonProjectDraft.goalsText),
+        rubric: linesToArray(lessonProjectDraft.rubricText),
+        template_id: lessonProjectDraft.template_id || undefined,
+        local_mode: lessonProjectDraft.local_mode,
+        ai_profile_id: lessonProjectDraft.ai_profile_id || undefined,
+        classroom_id: selectedClassroomId || undefined,
+        access_key: teacherAccessKey || undefined,
+        seed_from_classroom: lessonProjectDraft.seed_from_classroom,
+      })
+      await Promise.all([refreshStudio(false), refreshGrowth()])
+      setSelectedProjectSlug(result.project.slug)
+      startTransition(() => {
+        setLessonProjectResult(result)
+      })
+      setActivePage('projects')
+      setProjectView('build')
+      setNotice(`Converted the lesson plan into ${result.project.title}.`)
+    } catch (lessonError) {
+      setError(getErrorMessage(lessonError, 'Failed to convert the lesson into a project.'))
+    } finally {
+      setIsWorking(false)
+    }
+  }
+
+  async function promoteLibrary() {
+    if (!selectedClassroomId) {
+      return
+    }
+    const teacherAccessKey = requireClassroomAccess(selectedClassroomId, 'teacher')
+    if (!teacherAccessKey) {
+      return
+    }
+    setIsWorking(true)
+    setError(null)
+    setNotice(null)
+
+    try {
+      const result = await api.promoteClassroomLibrary(selectedClassroomId, {
+        access_key: teacherAccessKey,
+        material_ids: [],
+      })
+      startTransition(() => {
+        setClassroomLibrary(result)
+      })
+      await refreshGrowth()
+      setNotice('Promoted classroom evidence into the shared library.')
+    } catch (libraryError) {
+      setError(getErrorMessage(libraryError, 'Failed to promote classroom evidence.'))
+    } finally {
+      setIsWorking(false)
+    }
+  }
+
+  async function submitPeerReview() {
+    if (!selectedClassroomId || !selectedAssignmentId || !selectedStudentId) {
+      setError('Select a classroom, assignment, and student before creating a peer review.')
+      return
+    }
+    const studentAccessKey = requireRoleAccess(selectedClassroomId, 'student')
+    if (!studentAccessKey) {
+      return
+    }
+    setIsWorking(true)
+    setError(null)
+    setNotice(null)
+    try {
+      const review = await api.createPeerReview({
+        classroom_id: selectedClassroomId,
+        assignment_id: selectedAssignmentId,
+        reviewer_student_id: selectedStudentId,
+        target_student_id: selectedStudentId,
+        access_key: studentAccessKey,
+        draft_text: peerReviewDraft.draftText.trim(),
+        rubric: linesToArray(peerReviewDraft.rubricText),
+        project_slug: selectedProjectSlug || undefined,
+      })
+      await refreshGrowth()
+      startTransition(() => {
+        setPeerReviews(current => [review, ...current])
+      })
+      setNotice('Peer review submitted and routed into the approval gate.')
+    } catch (peerError) {
+      setError(getErrorMessage(peerError, 'Failed to create the peer review.'))
+    } finally {
+      setIsWorking(false)
+    }
+  }
+
+  async function resolvePeerReview(reviewId: string, decision: 'approved' | 'rejected') {
+    if (!selectedClassroomId) {
+      return
+    }
+    const reviewerKey = requireRoleAccess(selectedClassroomId, 'shared')
+    if (!reviewerKey) {
+      return
+    }
+    setIsWorking(true)
+    setError(null)
+    setNotice(null)
+    try {
+      await api.resolvePeerReview(reviewId, {
+        decision,
+        reviewer: peerReviewResolution.reviewer.trim(),
+        note: peerReviewResolution.note.trim(),
+        access_key: reviewerKey,
+      })
+      await refreshGrowth()
+      setNotice(`Peer review ${decision}.`)
+    } catch (peerResolveError) {
+      setError(getErrorMessage(peerResolveError, 'Failed to resolve the peer review.'))
+    } finally {
+      setIsWorking(false)
+    }
+  }
+
+  async function createFamilyShareLink() {
+    if (!selectedClassroomId || !selectedProjectSlug) {
+      setError('Select a classroom and project before creating a family share link.')
+      return
+    }
+    const teacherAccessKey = requireRoleAccess(selectedClassroomId, 'shared')
+    if (!teacherAccessKey) {
+      return
+    }
+    setIsWorking(true)
+    setError(null)
+    setNotice(null)
+    try {
+      const result = await api.createFamilyShareLink(selectedClassroomId, selectedProjectSlug, teacherAccessKey)
+      startTransition(() => {
+        setFamilyShareLink(result)
+      })
+      await refreshGrowth()
+      setNotice('Created a family-safe share link for the selected project.')
+    } catch (familyShareError) {
+      setError(getErrorMessage(familyShareError, 'Failed to create the family share link.'))
+    } finally {
+      setIsWorking(false)
+    }
+  }
+
+  async function trainRubricModel() {
+    if (!selectedClassroomId) {
+      return
+    }
+    const teacherAccessKey = requireClassroomAccess(selectedClassroomId, 'teacher')
+    if (!teacherAccessKey) {
+      return
+    }
+    setIsWorking(true)
+    setError(null)
+    setNotice(null)
+    try {
+      const result = await api.rubricTrain({
+        classroom_id: selectedClassroomId,
+        access_key: teacherAccessKey,
+        project_slugs: selectedProjectSlug ? [selectedProjectSlug] : [],
+      })
+      startTransition(() => {
+        setRubricModel(result)
+      })
+      await refreshGrowth()
+      setNotice('Rubric Trainer learned local quality patterns from the selected projects.')
+    } catch (rubricError) {
+      setError(getErrorMessage(rubricError, 'Failed to train the rubric model.'))
+    } finally {
+      setIsWorking(false)
+    }
+  }
+
+  async function generateAssessmentPack() {
+    if (!selectedClassroomId || !selectedAssignmentId) {
+      return
+    }
+    const teacherAccessKey = requireClassroomAccess(selectedClassroomId, 'teacher')
+    if (!teacherAccessKey) {
+      return
+    }
+    setIsWorking(true)
+    setError(null)
+    setNotice(null)
+    try {
+      const result = await api.assessmentPack({
+        classroom_id: selectedClassroomId,
+        assignment_id: selectedAssignmentId,
+        access_key: teacherAccessKey,
+        ai_profile_id: assignmentDraft.ai_profile_id || undefined,
+      })
+      startTransition(() => {
+        setAssessmentPack(result)
+      })
+      await refreshGrowth()
+      setNotice('Assessment Pack Generator created classroom materials from the approved evidence.')
+    } catch (assessmentError) {
+      setError(getErrorMessage(assessmentError, 'Failed to generate the assessment pack.'))
+    } finally {
+      setIsWorking(false)
+    }
+  }
+
+  async function installSchoolPack(packId: string) {
+    setIsWorking(true)
+    setError(null)
+    setNotice(null)
+    try {
+      const result = await api.installSchoolPack(packId)
+      startTransition(() => {
+        setLastInstalledPack(result)
+      })
+      await refreshGrowth()
+      await refreshStudio(false)
+      setNotice(`Installed school pack ${result.label}.`)
+    } catch (packError) {
+      setError(getErrorMessage(packError, 'Failed to install the school pack.'))
+    } finally {
+      setIsWorking(false)
+    }
+  }
+
   async function resolveApproval(approvalId: string, decision: 'approved' | 'rejected') {
     if (!selectedClassroomId) {
       return
@@ -1345,13 +1914,33 @@ function App() {
               ? 'Create, build, or review one project step at a time.'
               : 'Create, compile, review, and export local-first project work.',
           }
-        : activePage === 'classroom'
+      : activePage === 'classroom'
           ? {
               title: experienceSettings.profile === 'student' ? 'Student Workspace' : 'Classroom',
               description: isSimpleMode
                 ? 'Set up the classroom, launch student work, or review safety in separate steps.'
                 : 'Assignments, approved materials, bounded agents, and safety workflows.',
             }
+          : activePage === 'autopilot'
+            ? {
+                title: 'Autopilot',
+                description: 'Turn teacher goals, lesson plans, and rubrics into assignments, revision tasks, citations, and project scaffolds.',
+              }
+            : activePage === 'ops'
+              ? {
+                  title: 'Teacher Ops',
+                  description: 'Shared classroom library reuse, peer review moderation, standards mapping, interventions, replay, and assessment packs.',
+                }
+              : activePage === 'family'
+                ? {
+                    title: 'Family View',
+                    description: 'A read-only, simpler explanation of student project progress and downloadable exports.',
+                  }
+                : activePage === 'marketplace'
+                  ? {
+                      title: 'Marketplace',
+                      description: 'Templates, school packs, plugin SDK surfaces, and offline school deployment assets.',
+                    }
           : activePage === 'ai'
             ? {
                 title: 'AI Providers',
@@ -2601,6 +3190,38 @@ function App() {
                         </div>
                       </div>
 
+                      <div className="preview-card embedded">
+                        <div className="preview-topline">
+                          <div>
+                            <span className="mini-label">Submission readiness</span>
+                            <h3>{String((deferredProject.submission_readiness.progress_state as string | undefined) ?? 'not_started').replaceAll('_', ' ')}</h3>
+                          </div>
+                          <span className="pill">
+                            {(deferredProject.submission_readiness.ready_for_export as boolean | undefined) ? 'export unlocked' : 'quality gates active'}
+                          </span>
+                        </div>
+                        <div className="chip-row">
+                          <span className="chip">
+                            Citations {String((deferredProject.submission_readiness.metrics as Record<string, unknown> | undefined)?.citation_coverage ?? 0)}%
+                          </span>
+                          <span className="chip">
+                            Score {String((deferredProject.submission_readiness.metrics as Record<string, unknown> | undefined)?.overall_score ?? 0)}
+                          </span>
+                          <span className="chip">
+                            Pending approvals {String((deferredProject.submission_readiness.metrics as Record<string, unknown> | undefined)?.pending_approvals ?? 0)}
+                          </span>
+                        </div>
+                        {(((deferredProject.submission_readiness.blocking_reasons as string[] | undefined) ?? []).length > 0) ? (
+                          <ul className="narrative-list">
+                            {(((deferredProject.submission_readiness.blocking_reasons as string[] | undefined) ?? []).slice(0, 3)).map(reason => (
+                              <li key={reason}>{reason}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p>Final exports are available. You can share the family-safe view and local bundles.</p>
+                        )}
+                      </div>
+
                       <div className="form-grid">
                         <label className="field">
                           <span>Title</span>
@@ -3606,6 +4227,710 @@ function App() {
           </>
         ) : null}
 
+        {activePage === 'autopilot' ? (
+          <>
+            <section className="studio-grid">
+              <div className="column">
+                <Panel title="Assignment Autopilot" subtitle="Enter a topic and rubric, then let EduClawn build the assignment, evidence pack, checkpoints, standards map, and export path.">
+                  <form className="form-grid" onSubmit={runAssignmentAutopilot}>
+                    <label className="field">
+                      <span>Topic</span>
+                      <input value={autopilotDraft.topic} onChange={event => setAutopilotDraft(current => ({ ...current, topic: event.target.value }))} />
+                    </label>
+                    <label className="field">
+                      <span>Assignment title override</span>
+                      <input value={autopilotDraft.title} onChange={event => setAutopilotDraft(current => ({ ...current, title: event.target.value }))} placeholder="Optional title override" />
+                    </label>
+                    <label className="field">
+                      <span>Summary override</span>
+                      <textarea value={autopilotDraft.summary} onChange={event => setAutopilotDraft(current => ({ ...current, summary: event.target.value }))} placeholder="Optional teacher-facing summary" />
+                    </label>
+                    <div className="two-up">
+                      <label className="field">
+                        <span>Audience</span>
+                        <input value={autopilotDraft.audience} onChange={event => setAutopilotDraft(current => ({ ...current, audience: event.target.value }))} />
+                      </label>
+                      <label className="field">
+                        <span>Due date</span>
+                        <input value={autopilotDraft.due_date} onChange={event => setAutopilotDraft(current => ({ ...current, due_date: event.target.value }))} />
+                      </label>
+                    </div>
+                    <div className="two-up">
+                      <label className="field">
+                        <span>Template</span>
+                        <select value={autopilotDraft.template_id} onChange={event => setAutopilotDraft(current => ({ ...current, template_id: event.target.value }))}>
+                          <option value="">Auto-pick from topic</option>
+                          {deferredTemplates.map(template => (
+                            <option key={template.id} value={template.id}>{template.label}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="field">
+                        <span>Runtime mode</span>
+                        <select value={autopilotDraft.local_mode} onChange={event => setAutopilotDraft(current => ({ ...current, local_mode: event.target.value as typeof defaultAutopilotDraft.local_mode }))}>
+                          <option value="no-llm">No-LLM</option>
+                          <option value="local-llm">Local-LLM</option>
+                          <option value="provider-ai">Provider AI</option>
+                        </select>
+                      </label>
+                    </div>
+                    {autopilotDraft.local_mode === 'provider-ai' ? (
+                      <label className="field">
+                        <span>Provider profile</span>
+                        <select value={autopilotDraft.ai_profile_id} onChange={event => setAutopilotDraft(current => ({ ...current, ai_profile_id: event.target.value }))}>
+                          <option value="">Auto-route from provider catalog</option>
+                          {deferredAiProfiles.map(profile => (
+                            <option key={profile.profile_id} value={profile.profile_id}>{profile.label} · {profile.provider_label}</option>
+                          ))}
+                        </select>
+                      </label>
+                    ) : null}
+                    <label className="field">
+                      <span>Goals</span>
+                      <textarea value={autopilotDraft.goalsText} onChange={event => setAutopilotDraft(current => ({ ...current, goalsText: event.target.value }))} />
+                    </label>
+                    <div className="two-up">
+                      <label className="field">
+                        <span>Rubric</span>
+                        <textarea value={autopilotDraft.rubricText} onChange={event => setAutopilotDraft(current => ({ ...current, rubricText: event.target.value }))} />
+                      </label>
+                      <label className="field">
+                        <span>Standards</span>
+                        <textarea value={autopilotDraft.standardsText} onChange={event => setAutopilotDraft(current => ({ ...current, standardsText: event.target.value }))} />
+                      </label>
+                    </div>
+                    <label className="field">
+                      <span>Lesson seed</span>
+                      <textarea value={autopilotDraft.lessonSeed} onChange={event => setAutopilotDraft(current => ({ ...current, lessonSeed: event.target.value }))} />
+                    </label>
+                    <button className="action-button full-width" disabled={isWorking || !selectedClassroomId}>
+                      {isWorking ? 'Running Autopilot...' : 'Run Assignment Autopilot'}
+                    </button>
+                  </form>
+                </Panel>
+              </div>
+
+              <div className="column">
+                <Panel title="Autopilot Output" subtitle="See how the route, evidence pack, standards map, and export set came together.">
+                  {deferredAutopilotResult ? (
+                    <div className="stack-tight">
+                      <div className="preview-card">
+                        <div className="preview-topline">
+                          <div>
+                            <span className="mini-label">Created assignment</span>
+                            <h3>{deferredAutopilotResult.assignment.title}</h3>
+                          </div>
+                          <span className="pill">{deferredAutopilotResult.route.execution_mode}</span>
+                        </div>
+                        <p>{deferredAutopilotResult.teacher_summary}</p>
+                        <div className="chip-row">
+                          <span className="chip">{deferredAutopilotResult.assignment.template_label}</span>
+                          <span className="chip">{deferredAutopilotResult.evidence_pack.length} evidence items</span>
+                          <span className="chip">{deferredAutopilotResult.export_targets.length} export targets</span>
+                          {deferredAutopilotResult.route.selected_provider ? (
+                            <span className="chip">{deferredAutopilotResult.route.selected_provider.provider_label}</span>
+                          ) : null}
+                        </div>
+                      </div>
+                      <div className="card-grid compact">
+                        {deferredAutopilotResult.evidence_pack.map(item => (
+                          <article className="mini-card" key={item.material_id}>
+                            <h3>{item.title}</h3>
+                            <p>{item.summary}</p>
+                          </article>
+                        ))}
+                      </div>
+                      <div className="preview-card embedded">
+                        <p className="mini-label">Checkpoint plan</p>
+                        <ul className="narrative-list">
+                          {deferredAutopilotResult.checkpoints.map(checkpoint => (
+                            <li key={String(checkpoint.checkpoint)}>
+                              <strong>{String(checkpoint.checkpoint)}</strong>: {String(checkpoint.detail)}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="empty-state">Run Assignment Autopilot after selecting a classroom.</div>
+                  )}
+                </Panel>
+              </div>
+            </section>
+
+            <section className="studio-grid">
+              <div className="column">
+                <Panel title="Student Revision Coach" subtitle="Compare a draft to the rubric, generate revision tasks, and verify claims against uploaded evidence.">
+                  <div className="stack-tight">
+                    <label className="field">
+                      <span>Draft</span>
+                      <textarea value={revisionCoachDraft.draftText} onChange={event => setRevisionCoachDraft(current => ({ ...current, draftText: event.target.value }))} />
+                    </label>
+                    <label className="field">
+                      <span>Teacher feedback</span>
+                      <textarea value={revisionCoachDraft.teacherFeedbackText} onChange={event => setRevisionCoachDraft(current => ({ ...current, teacherFeedbackText: event.target.value }))} />
+                    </label>
+                    <label className="field">
+                      <span>Provider override</span>
+                      <select value={revisionCoachDraft.ai_profile_id} onChange={event => setRevisionCoachDraft(current => ({ ...current, ai_profile_id: event.target.value }))}>
+                        <option value="">Auto-route</option>
+                        {deferredAiProfiles.map(profile => (
+                          <option key={profile.profile_id} value={profile.profile_id}>{profile.label} · {profile.provider_label}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <div className="action-row">
+                      <button className="action-button" type="button" onClick={() => void runRevisionCoach()} disabled={isWorking || !selectedAssignmentId}>
+                        Run Revision Coach
+                      </button>
+                      <button className="text-button dark-on-light" type="button" onClick={() => void runCitationVerifier()} disabled={isWorking || !selectedProjectSlug}>
+                        Verify Citations
+                      </button>
+                    </div>
+                    {deferredRevisionCoachResult ? (
+                      <div className="preview-card embedded">
+                        <div className="preview-topline">
+                          <div>
+                            <span className="mini-label">Coach summary</span>
+                            <h3>{deferredRevisionCoachResult.route.execution_mode}</h3>
+                          </div>
+                          <span className="pill">{deferredRevisionCoachResult.citation_verification.overall_score}% verified</span>
+                        </div>
+                        <p>{deferredRevisionCoachResult.student_summary}</p>
+                        <ul className="narrative-list">
+                          {deferredRevisionCoachResult.revision_tasks.map(task => (
+                            <li key={task}>{task}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                    {deferredCitationVerification ? (
+                      <div className="preview-card embedded">
+                        <p className="mini-label">Citation Verifier</p>
+                        <div className="chip-row">
+                          <span className="chip">Ready {deferredCitationVerification.ready_for_export ? 'yes' : 'no'}</span>
+                          <span className="chip">{deferredCitationVerification.verified_claims.length} verified claims</span>
+                          <span className="chip">{deferredCitationVerification.blocked_claims.length} blocked claims</span>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                </Panel>
+              </div>
+
+              <div className="column">
+                <Panel title="Lesson-to-Project Agent" subtitle="Turn a lesson plan into a local project scaffold with reusable sections, goals, and seeded classroom evidence.">
+                  <form className="form-grid" onSubmit={runLessonToProject}>
+                    <label className="field">
+                      <span>Lesson plan</span>
+                      <textarea value={lessonProjectDraft.lessonPlan} onChange={event => setLessonProjectDraft(current => ({ ...current, lessonPlan: event.target.value }))} />
+                    </label>
+                    <div className="two-up">
+                      <label className="field">
+                        <span>Title override</span>
+                        <input value={lessonProjectDraft.title} onChange={event => setLessonProjectDraft(current => ({ ...current, title: event.target.value }))} />
+                      </label>
+                      <label className="field">
+                        <span>Template</span>
+                        <select value={lessonProjectDraft.template_id} onChange={event => setLessonProjectDraft(current => ({ ...current, template_id: event.target.value }))}>
+                          <option value="">Auto-pick</option>
+                          {deferredTemplates.map(template => (
+                            <option key={template.id} value={template.id}>{template.label}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                    <label className="field">
+                      <span>Provider override</span>
+                      <select value={lessonProjectDraft.ai_profile_id} onChange={event => setLessonProjectDraft(current => ({ ...current, ai_profile_id: event.target.value }))}>
+                        <option value="">Auto-route</option>
+                        {deferredAiProfiles.map(profile => (
+                          <option key={profile.profile_id} value={profile.profile_id}>{profile.label} · {profile.provider_label}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="stage-toggle">
+                      <input
+                        type="checkbox"
+                        checked={lessonProjectDraft.seed_from_classroom}
+                        onChange={() => setLessonProjectDraft(current => ({ ...current, seed_from_classroom: !current.seed_from_classroom }))}
+                      />
+                      <div>
+                        <strong>Seed from classroom evidence</strong>
+                        <p>Pull approved classroom materials into the generated project.</p>
+                      </div>
+                    </label>
+                    <button className="action-button full-width" disabled={isWorking}>
+                      {isWorking ? 'Converting lesson...' : 'Convert Lesson to Project'}
+                    </button>
+                  </form>
+                  {deferredLessonProjectResult ? (
+                    <div className="preview-card embedded">
+                      <div className="preview-topline">
+                        <div>
+                          <span className="mini-label">Created project</span>
+                          <h3>{deferredLessonProjectResult.project.title}</h3>
+                        </div>
+                        <span className="pill">{deferredLessonProjectResult.route.execution_mode}</span>
+                      </div>
+                      <p>{String(deferredLessonProjectResult.scaffold.planner_note ?? '')}</p>
+                    </div>
+                  ) : null}
+                </Panel>
+              </div>
+            </section>
+          </>
+        ) : null}
+
+        {activePage === 'ops' ? (
+          <section className="studio-grid">
+            <div className="column">
+              <Panel title="Classroom Library" subtitle="Promote shared evidence into a teacher library that can be reused across classes and years.">
+                <div className="stack-tight">
+                  <div className="action-row">
+                    <button className="action-button" type="button" onClick={() => void promoteLibrary()} disabled={isWorking || !selectedClassroomId}>
+                      Promote Classroom Evidence
+                    </button>
+                    <button className="text-button dark-on-light" type="button" onClick={() => void refreshGrowth()}>
+                      Refresh Library
+                    </button>
+                  </div>
+                  {deferredClassroomLibrary ? (
+                    <>
+                      <div className="preview-card embedded">
+                        <div className="preview-topline">
+                          <div>
+                            <span className="mini-label">Reusable vault</span>
+                            <h3>{deferredClassroomLibrary.teacher_name}</h3>
+                          </div>
+                          <span className="pill">{deferredClassroomLibrary.item_count} items</span>
+                        </div>
+                        <div className="chip-row">
+                          {deferredClassroomLibrary.collections.map(collection => (
+                            <span className="chip" key={String(collection.collection_id)}>{String(collection.label)}</span>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="card-grid compact">
+                        {deferredClassroomLibrary.recommended_reuse.map(item => (
+                          <article className="mini-card" key={String(item.library_item_id)}>
+                            <h3>{String(item.title)}</h3>
+                            <p>{String(item.summary)}</p>
+                          </article>
+                        ))}
+                        {deferredClassroomLibrary.recommended_reuse.length === 0 ? <div className="empty-state">Reuse suggestions appear after evidence has been promoted across classrooms.</div> : null}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="empty-state">Select a classroom to inspect the shared library.</div>
+                  )}
+                </div>
+              </Panel>
+
+              <Panel title="Peer Review Mode" subtitle="Let students draft rubric-guided peer feedback, then hold it behind a teacher approval gate.">
+                <div className="stack-tight">
+                  <label className="field">
+                    <span>Peer review draft</span>
+                    <textarea value={peerReviewDraft.draftText} onChange={event => setPeerReviewDraft(current => ({ ...current, draftText: event.target.value }))} />
+                  </label>
+                  <label className="field">
+                    <span>Rubric</span>
+                    <textarea value={peerReviewDraft.rubricText} onChange={event => setPeerReviewDraft(current => ({ ...current, rubricText: event.target.value }))} />
+                  </label>
+                  <button className="action-button" type="button" onClick={() => void submitPeerReview()} disabled={isWorking || !selectedStudentId}>
+                    Submit Peer Review
+                  </button>
+                  <div className="form-grid">
+                    <label className="field">
+                      <span>Moderator</span>
+                      <input value={peerReviewResolution.reviewer} onChange={event => setPeerReviewResolution(current => ({ ...current, reviewer: event.target.value }))} />
+                    </label>
+                    <label className="field">
+                      <span>Moderation note</span>
+                      <textarea value={peerReviewResolution.note} onChange={event => setPeerReviewResolution(current => ({ ...current, note: event.target.value }))} />
+                    </label>
+                  </div>
+                  <div className="card-grid compact">
+                    {deferredPeerReviews.map(review => (
+                      <article className="mini-card" key={review.review_id}>
+                        <div className="preview-topline">
+                          <div>
+                            <span className="mini-label">{review.reviewer_name}</span>
+                            <h3>{review.target_student_name}</h3>
+                          </div>
+                          <span className="pill">{review.status}</span>
+                        </div>
+                        <p>{review.summary}</p>
+                        {review.status === 'pending_teacher_approval' ? (
+                          <div className="action-row">
+                            <button className="text-button dark-on-light" type="button" onClick={() => void resolvePeerReview(review.review_id, 'approved')}>
+                              Approve
+                            </button>
+                            <button className="text-button dark-on-light" type="button" onClick={() => void resolvePeerReview(review.review_id, 'rejected')}>
+                              Reject
+                            </button>
+                          </div>
+                        ) : null}
+                      </article>
+                    ))}
+                    {deferredPeerReviews.length === 0 ? <div className="empty-state">Peer review requests appear here after students submit them.</div> : null}
+                  </div>
+                  {deferredPeerReviewPairs ? (
+                    <div className="preview-card embedded">
+                      <div className="preview-topline">
+                        <div>
+                          <span className="mini-label">Suggested pairings</span>
+                          <h3>{deferredPeerReviewPairs.assignment_title}</h3>
+                        </div>
+                        <span className="pill">{deferredPeerReviewPairs.pair_count} pairs</span>
+                      </div>
+                      <ul className="narrative-list">
+                        {deferredPeerReviewPairs.pairs.slice(0, 4).map(pair => (
+                          <li key={`${String(pair.reviewer_student_id)}-${String(pair.target_student_id)}`}>
+                            {String(pair.reviewer_name)} reviews {String(pair.target_student_name)}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                </div>
+              </Panel>
+            </div>
+
+            <div className="column">
+              <Panel title="Teacher Ops" subtitle="Auto-map standards, identify intervention needs, replay classroom actions, train rubric patterns, and generate assessment packs.">
+                <div className="stack-tight">
+                  <div className="action-row">
+                    <button className="action-button" type="button" onClick={() => void generateAssessmentPack()} disabled={isWorking || !selectedAssignmentId}>
+                      Generate Assessment Pack
+                    </button>
+                    <button className="text-button dark-on-light" type="button" onClick={() => void trainRubricModel()} disabled={isWorking || !selectedProjectSlug}>
+                      Train Rubric Model
+                    </button>
+                    <button className="text-button dark-on-light" type="button" onClick={() => void refreshGrowth()}>
+                      Refresh Teacher Ops
+                    </button>
+                  </div>
+                  {deferredStandardsMap ? (
+                    <div className="preview-card embedded">
+                      <div className="preview-topline">
+                        <div>
+                          <span className="mini-label">Standards Mapper</span>
+                          <h3>{deferredStandardsMap.assignment_title}</h3>
+                        </div>
+                        <span className="pill">{deferredStandardsMap.standards_alignment.length} alignments</span>
+                      </div>
+                      <ul className="narrative-list">
+                        {deferredStandardsMap.teacher_moves.map(move => (
+                          <li key={move}>{move}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {deferredInterventionDashboard ? (
+                    <div className="preview-card embedded">
+                      <div className="preview-topline">
+                        <div>
+                          <span className="mini-label">Intervention Dashboard</span>
+                          <h3>{deferredInterventionDashboard.classroom_title}</h3>
+                        </div>
+                        <span className="pill">{String(deferredInterventionDashboard.summary.students ?? 0)} students</span>
+                      </div>
+                      <div className="chip-row">
+                        {deferredInterventionDashboard.interventions.map(item => (
+                          <span className="chip" key={item}>{item}</span>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                  {deferredClassroomRoster ? (
+                    <div className="preview-card embedded">
+                      <div className="preview-topline">
+                        <div>
+                          <span className="mini-label">Roster</span>
+                          <h3>{deferredClassroomRoster.classroom_title}</h3>
+                        </div>
+                        <span className="pill">{String(deferredClassroomRoster.summary.students ?? 0)} students</span>
+                      </div>
+                      <div className="chip-row">
+                        <span className="chip">Drafting {String(deferredClassroomRoster.summary.drafting ?? 0)}</span>
+                        <span className="chip">Review {String(deferredClassroomRoster.summary.under_review ?? 0)}</span>
+                        <span className="chip">Ready {String(deferredClassroomRoster.summary.ready_for_export ?? 0)}</span>
+                      </div>
+                    </div>
+                  ) : null}
+                  {deferredAssignmentStatusBoard ? (
+                    <div className="preview-card embedded">
+                      <div className="preview-topline">
+                        <div>
+                          <span className="mini-label">Assignment status board</span>
+                          <h3>{deferredAssignmentStatusBoard.classroom_title}</h3>
+                        </div>
+                        <span className="pill">{deferredAssignmentStatusBoard.assignments.length} assignments</span>
+                      </div>
+                      <div className="card-grid compact">
+                        {deferredAssignmentStatusBoard.assignments.slice(0, 4).map(item => (
+                          <article className="mini-card" key={String(item.assignment_id)}>
+                            <h3>{String(item.assignment_title)}</h3>
+                            <p>Status: {String(item.status)}</p>
+                            <div className="chip-row">
+                              <span className="chip">Launched {String(item.launched_count)}</span>
+                              <span className="chip">Ready {String(item.ready_count)}</span>
+                            </div>
+                          </article>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                  {deferredAssessmentPack ? (
+                    <div className="preview-card embedded">
+                      <div className="preview-topline">
+                        <div>
+                          <span className="mini-label">Assessment Pack Generator</span>
+                          <h3>{deferredAssessmentPack.assignment_title}</h3>
+                        </div>
+                        <span className="pill">{deferredAssessmentPack.quiz_questions.length} quiz prompts</span>
+                      </div>
+                      <p>{deferredAssessmentPack.teacher_note}</p>
+                    </div>
+                  ) : null}
+                  {deferredRubricModel ? (
+                    <div className="preview-card embedded">
+                      <div className="preview-topline">
+                        <div>
+                          <span className="mini-label">Rubric Trainer</span>
+                          <h3>{deferredRubricModel.model_id}</h3>
+                        </div>
+                        <span className="pill">{deferredRubricModel.trained_on_projects.length} projects</span>
+                      </div>
+                      <div className="chip-row">
+                        {deferredRubricModel.quality_signals.map(signal => (
+                          <span className="chip" key={signal}>{signal}</span>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                  {deferredClassroomReplay ? (
+                    <div className="preview-card embedded">
+                      <div className="preview-topline">
+                        <div>
+                          <span className="mini-label">Classroom Replay</span>
+                          <h3>{deferredClassroomReplay.classroom_title}</h3>
+                        </div>
+                        <span className="pill">{String(deferredClassroomReplay.counts.timeline_events ?? 0)} events</span>
+                      </div>
+                      <div className="card-grid compact">
+                        {deferredClassroomReplay.timeline.slice(0, 6).map(entry => (
+                          <article className="mini-card" key={String(entry.event_id)}>
+                            <h3>{String(entry.headline)}</h3>
+                            <p>{String(entry.summary)}</p>
+                          </article>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              </Panel>
+            </div>
+          </section>
+        ) : null}
+
+        {activePage === 'family' ? (
+          <section className="studio-grid single-column">
+            <div className="column">
+              <Panel title="Parent and Family View" subtitle="Use simple language, show progress clearly, and keep downloads one click away.">
+                {deferredFamilyView ? (
+                  <div className="stack-tight">
+                    <div className="preview-card">
+                      <div className="preview-topline">
+                        <div>
+                          <span className="mini-label">{deferredFamilyView.classroom_title}</span>
+                          <h3>{deferredFamilyView.project_title}</h3>
+                        </div>
+                        <span className="pill">{String(deferredFamilyView.progress.status ?? 'in progress')}</span>
+                      </div>
+                      <p>{deferredFamilyView.summary}</p>
+                      <div className="chip-row">
+                        <span className="chip">Student {deferredFamilyView.student_name || 'n/a'}</span>
+                        <span className="chip">Assignment {deferredFamilyView.assignment_title || 'n/a'}</span>
+                        <span className="chip">{String(deferredFamilyView.progress.documents ?? 0)} sources</span>
+                        <span className="chip">{String(deferredFamilyView.progress.exports ?? 0)} downloads</span>
+                      </div>
+                    </div>
+                    <div className="preview-card embedded">
+                      <div className="preview-topline">
+                        <div>
+                          <span className="mini-label">Family-safe sharing</span>
+                          <h3>Read-only link</h3>
+                        </div>
+                        <span className="pill">
+                          {deferredFamilyView.share_link || deferredFamilyShareLink?.share_url ? 'ready' : 'not created'}
+                        </span>
+                      </div>
+                      <p>{deferredFamilyView.share_link || deferredFamilyShareLink?.share_url || 'Create a read-only share link for families from the selected classroom project.'}</p>
+                      <div className="action-row">
+                        <button className="action-button secondary" type="button" onClick={() => void createFamilyShareLink()} disabled={isWorking || !selectedProjectSlug}>
+                          Create Share Link
+                        </button>
+                      </div>
+                    </div>
+                    <div className="two-up">
+                      <div className="subpanel">
+                        <div className="preview-topline">
+                          <div>
+                            <span className="mini-label">Next steps</span>
+                            <h3>What the family can do</h3>
+                          </div>
+                        </div>
+                        <ul className="narrative-list">
+                          {deferredFamilyView.next_steps.map(step => (
+                            <li key={step}>{step}</li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div className="subpanel">
+                        <div className="preview-topline">
+                          <div>
+                            <span className="mini-label">Downloads</span>
+                            <h3>Exported work</h3>
+                          </div>
+                        </div>
+                        <div className="card-grid compact">
+                          {deferredFamilyView.downloads.map(download => (
+                            <article className="mini-card" key={download.export_type}>
+                              <h3>{download.export_type.replaceAll('_', ' ')}</h3>
+                              {selectedProjectSlug ? (
+                                <a className="text-button dark-on-light" href={api.downloadUrl(selectedProjectSlug, download.export_type)} target="_blank" rel="noreferrer">
+                                  Download
+                                </a>
+                              ) : null}
+                            </article>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="preview-card embedded">
+                      <p className="mini-label">Teacher comments in simple language</p>
+                      <ul className="narrative-list">
+                        {deferredFamilyView.teacher_comments.map(comment => (
+                          <li key={`${String(comment.created_at)}-${String(comment.criterion)}`}>
+                            <strong>{String(comment.criterion)}</strong>: {String(comment.plain_language)}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="empty-state">Launch and compile a student project to activate the family view.</div>
+                )}
+              </Panel>
+            </div>
+          </section>
+        ) : null}
+
+        {activePage === 'marketplace' ? (
+          <section className="studio-grid">
+            <div className="column">
+              <Panel title="Template Marketplace" subtitle="Browse the open-source template system, install school packs, and reuse sample projects.">
+                <div className="stack-tight">
+                  <div className="card-grid compact">
+                    {(deferredMarketplace?.school_packs ?? []).map(pack => (
+                      <article className="mini-card" key={pack.pack_id}>
+                        <div className="preview-topline">
+                          <div>
+                            <span className="mini-label">{pack.audience}</span>
+                            <h3>{pack.label}</h3>
+                          </div>
+                          <span className="pill">{pack.installed ? 'installed' : 'available'}</span>
+                        </div>
+                        <p>{pack.description}</p>
+                        <div className="chip-row">
+                          {pack.recommended_template_ids.map(templateId => (
+                            <span className="chip" key={templateId}>{templateId}</span>
+                          ))}
+                        </div>
+                        <button className="text-button dark-on-light" type="button" onClick={() => void installSchoolPack(pack.pack_id)} disabled={isWorking}>
+                          {pack.installed ? 'Reinstall Pack' : 'Install Pack'}
+                        </button>
+                      </article>
+                    ))}
+                  </div>
+                  {deferredGrowthOverview ? (
+                    <div className="preview-card embedded">
+                      <div className="chip-row">
+                        <span className="chip">{String(deferredGrowthOverview.counts.classrooms ?? 0)} classrooms</span>
+                        <span className="chip">{String(deferredGrowthOverview.counts.library_items ?? 0)} library items</span>
+                        <span className="chip">{String(deferredGrowthOverview.counts.school_packs ?? 0)} school packs</span>
+                      </div>
+                    </div>
+                  ) : null}
+                  {deferredLastInstalledPack ? (
+                    <div className="preview-card embedded">
+                      <div className="preview-topline">
+                        <div>
+                          <span className="mini-label">Installed school pack</span>
+                          <h3>{deferredLastInstalledPack.label}</h3>
+                        </div>
+                        <span className="pill">{deferredLastInstalledPack.created_samples.length} samples</span>
+                      </div>
+                      <p>{deferredLastInstalledPack.manifest_path}</p>
+                    </div>
+                  ) : null}
+                </div>
+              </Panel>
+            </div>
+
+            <div className="column">
+              <Panel title="Plugin SDK and Offline School Edition" subtitle="See how template/plugin extension points and local-first deployment fit together.">
+                <div className="stack-tight">
+                  <div className="preview-card embedded">
+                    <div className="preview-topline">
+                      <div>
+                        <span className="mini-label">Plugin SDK</span>
+                        <h3>{String(deferredMarketplace?.plugin_sdk.installed_plugins ?? 0)} installed plugins</h3>
+                      </div>
+                      <span className="pill">open source</span>
+                    </div>
+                    <div className="chip-row">
+                      {(((deferredMarketplace?.plugin_sdk.extension_points as string[] | undefined) ?? [])).map(point => (
+                        <span className="chip" key={point}>{point}</span>
+                      ))}
+                    </div>
+                    <p>{String(deferredMarketplace?.plugin_sdk.plugin_sdk_path ?? '')}</p>
+                  </div>
+                  <div className="preview-card embedded">
+                    <div className="preview-topline">
+                      <div>
+                        <span className="mini-label">Offline School Edition</span>
+                        <h3>{deferredOfflineSchoolEdition?.edition_name ?? 'Offline edition pending'}</h3>
+                      </div>
+                      <span className="pill">{deferredOfflineSchoolEdition?.readiness_score ?? 0}% ready</span>
+                    </div>
+                    <div className="chip-row">
+                      {(deferredOfflineSchoolEdition?.supported_modes ?? []).map(mode => (
+                        <span className="chip" key={mode}>{mode}</span>
+                      ))}
+                    </div>
+                    <ul className="narrative-list">
+                      {(deferredOfflineSchoolEdition?.recommended_rollout ?? []).map(item => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="card-grid compact">
+                    {(deferredMarketplace?.templates ?? []).slice(0, 6).map(template => (
+                      <article className="mini-card" key={template.id}>
+                        <h3>{template.label}</h3>
+                        <p>{template.description}</p>
+                      </article>
+                    ))}
+                  </div>
+                </div>
+              </Panel>
+            </div>
+          </section>
+        ) : null}
+
         {activePage === 'ai' ? (
           <section className="studio-grid">
             <div className="column">
@@ -3642,6 +4967,11 @@ function App() {
                             <span className="chip">{profile.api_key_hint}</span>
                             <span className="chip">Test {profile.last_test_status}</span>
                             <span className="chip">SDK {profile.sdk_installed ? 'installed' : 'missing'}</span>
+                          </div>
+                          <div className="chip-row">
+                            <span className="chip">Today {profile.usage_summary.requests_today}/{profile.daily_request_limit}</span>
+                            <span className="chip">Budget ${profile.usage_summary.spend_this_month_usd.toFixed(2)}/${profile.monthly_budget_usd.toFixed(2)}</span>
+                            <span className="chip">Redaction {profile.redaction_mode}</span>
                           </div>
                           <div className="chip-row">
                             {profile.capabilities.map(capability => (
@@ -3808,6 +5138,8 @@ function App() {
                               <span className="chip">{entry.provider_label}</span>
                               <span className="chip">{entry.model}</span>
                               <span className="chip">{entry.task}</span>
+                              <span className="chip">${entry.estimated_cost_usd.toFixed(4)}</span>
+                              {entry.fallback_used ? <span className="chip">fallback</span> : null}
                             </div>
                           </article>
                         ))
@@ -4145,7 +5477,29 @@ function getVisiblePages(profile: ExperienceProfile, showAdvancedSystems: boolea
       label: profile === 'student' ? 'Student' : 'Classroom',
       detail: 'Assignments, approved materials, bounded agents, and safety workflows.',
     })
+    basePages.push({
+      id: 'autopilot',
+      label: 'Autopilot',
+      detail: 'Assignment Autopilot, revision coaching, lesson-to-project conversion, and citation checks.',
+    })
+    basePages.push({
+      id: 'ops',
+      label: 'Teacher Ops',
+      detail: 'Library reuse, peer review, standards mapping, interventions, replay, and assessment packs.',
+    })
   }
+
+  basePages.push({
+    id: 'family',
+    label: 'Family',
+    detail: 'Read-only student progress, simple language, and export downloads.',
+  })
+
+  basePages.push({
+    id: 'marketplace',
+    label: 'Marketplace',
+    detail: 'Templates, school packs, plugins, and offline school deployment assets.',
+  })
 
   basePages.push({
     id: 'ai',

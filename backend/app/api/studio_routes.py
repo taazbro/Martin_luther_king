@@ -213,6 +213,8 @@ def download_export(slug: str, export_type: str, request: Request) -> FileRespon
         export_path = studio_service.get_export_path(slug, export_type)
     except FileNotFoundError as error:
         raise HTTPException(status_code=404, detail="Export not found.") from error
+    except PermissionError as error:
+        raise HTTPException(status_code=403, detail=str(error) or "Export blocked by quality gates.") from error
     if export_path.is_dir():
         raise HTTPException(status_code=400, detail="Directory exports are packaged through the project bundle.")
     return FileResponse(export_path, filename=export_path.name)

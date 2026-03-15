@@ -24,6 +24,13 @@ Students and teachers can:
 - upload local documents and classroom evidence
 - extract and search evidence locally
 - generate provenance-backed project artifacts
+- run Assignment Autopilot to turn a topic, rubric, and lesson seed into a full classroom-ready package
+- compare drafts against rubrics with Student Revision Coach and Citation Verifier
+- reuse evidence through a shared Classroom Library across classes and years
+- run safe Peer Review Mode with teacher approval gates
+- open a simpler Parent/Family View with progress, comments, and downloads
+- create family-safe share links for read-only project updates
+- track classroom roster progress states and assignment status boards
 - connect preferred cloud AI providers with local encrypted profiles
 - run bounded local agents with approval gates
 - compile projects into multiple export formats
@@ -78,6 +85,7 @@ A packaged Electron desktop shell that:
 - standards alignment
 - teacher comments and revision history
 - export generation
+- enforced export readiness gates for citation coverage, rubric thresholds, and pending approvals
 
 ### Agent Runtime
 
@@ -102,6 +110,30 @@ A packaged Electron desktop shell that:
 - approval queue
 - audit log
 - classroom-safe collaboration model
+- assignment autopilot
+- student revision coach
+- classroom library reuse
+- peer review moderation
+- family view
+- family-safe share links
+- standards mapper
+- intervention dashboard
+- classroom roster tools and assignment status boards
+- classroom replay
+- peer review pairing suggestions
+- assessment pack generation
+- rubric trainer
+- lesson-to-project conversion
+- citation verification
+- hybrid local/cloud routing
+
+### Growth and Open Source Layer
+
+- template marketplace
+- school pack installer
+- plugin SDK surfaces
+- offline school edition readiness
+- district/nonprofit/teacher starter pack support
 
 ### Security
 
@@ -117,7 +149,7 @@ A packaged Electron desktop shell that:
 
 - first-run onboarding
 - Easy Start Center for teachers, students, families, and advanced builders
-- role-based frontend navigation with separate `Home`, `Projects`, `Classroom`, `Desktop`, and `Advanced` views
+- role-based frontend navigation with separate `Home`, `Projects`, `Classroom`, `Autopilot`, `Teacher Ops`, `Family`, `Marketplace`, `AI`, `Desktop`, and `Advanced` views
 - simple dashboard mode
 - larger text and reduced-motion comfort settings
 - workspace chooser
@@ -134,6 +166,8 @@ A packaged Electron desktop shell that:
 - local encrypted AI provider profiles stored inside the EduClawn workspace
 - `user-key` mode for bring-your-own API access
 - `managed-subscription` mode for locally managed provider seats that EduClawn agents can use on behalf of the classroom workflow
+- per-profile daily request limits, monthly budgets, classroom caps, redaction modes, and fallback chains
+- classroom AI policies for managed-subscription control and PII redaction
 - supported providers:
   - OpenAI
   - Anthropic
@@ -157,6 +191,14 @@ Provider profiles can be used in three places:
 - classroom assignments through `provider-ai` runtime mode
 - bounded classroom agents through an optional provider override
 
+The routing layer can also automatically choose different providers for different jobs:
+
+- OpenAI for writing and assignment generation
+- Anthropic for feedback and review
+- Gemini for multimodal-oriented research flows
+- Groq for fast planning tasks
+- local models first when hybrid mode can stay fully on-device
+
 ## Desktop Use
 
 If you want to use it like normal software, use the packaged desktop app.
@@ -178,6 +220,28 @@ Artifacts produced by the desktop packaging flow include:
 The desktop app starts the bundled backend automatically and serves the studio locally at `/desktop/`. Users do not need to run the backend and frontend manually to use the packaged app.
 
 For local macOS packaging without Apple credentials, the desktop build wrapper automatically disables hardened runtime so the generated `.app` remains usable on the builder machine. Signed release builds still keep the notarization-ready path.
+
+## Trust And Readiness Gates
+
+Final student-facing exports are no longer always produced automatically. EduClawn now blocks protected export types until:
+
+- uploaded evidence is present
+- citation coverage clears the project threshold
+- rubric and teacher-review scores meet the minimum threshold
+- pending classroom approvals are resolved
+
+If a project is blocked, EduClawn still produces the rubric report so teachers and students can see what to fix next.
+
+## Open-Source Starter Assets
+
+The open-source layer now ships with:
+
+- school pack blueprints in `community/school_packs/`
+- template author starters in `community/template_starters/`
+- sample community plugins in `community/plugins/`
+- sample project manifests in `community/sample_projects/`
+
+Use the Marketplace page or the school-pack install endpoint to install a pack and start from a local starter instead of building from scratch.
 
 ## One-Step Local Setup
 
@@ -224,6 +288,8 @@ Projects can be exported as:
 - rubric report
 - `.cpsbundle` project bundle
 
+Family and classroom workflows can also reuse those exports through the family-facing read-only view.
+
 ## Local Modes
 
 - `no-llm`: deterministic local generation and scoring
@@ -246,6 +312,17 @@ Use the `AI` page in the desktop or web UI to:
 - inspect recent provider-backed usage
 
 The backend stores provider secrets encrypted at rest inside the local workspace using the EduClawn security secret. The raw API keys are not exposed back through the API after profile creation.
+
+## New Teacher and Student Workflows
+
+- `Assignment Autopilot`: creates assignments, evidence packs, checkpoint plans, standards maps, assessment packs, and export targets from one teacher input.
+- `Student Revision Coach`: turns rubric gaps and teacher feedback into concrete revision tasks.
+- `Citation Verifier`: checks whether draft claims map back to uploaded evidence before export.
+- `Lesson-to-Project Agent`: converts a lesson plan into a reusable local project scaffold.
+- `Classroom Library`: promotes approved evidence into a reusable teacher vault.
+- `Peer Review Mode`: lets students draft rubric-guided feedback while keeping release behind teacher approval.
+- `Teacher Ops`: maps standards, surfaces interventions, replays classroom activity, and trains local rubric patterns.
+- `Marketplace`: exposes templates, school packs, plugin SDK entry points, and offline deployment assets.
 
 ## Repository Structure
 

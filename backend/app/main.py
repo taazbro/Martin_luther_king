@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.ai_routes import router as ai_router
 from app.api.educlawn_routes import router as educlawn_router
+from app.api.education_growth_routes import router as education_growth_router
 from app.api.education_routes import router as education_router
 from app.api.routes import router
 from app.api.studio_routes import router as studio_router
@@ -18,6 +19,7 @@ from app.core.security import AuthService
 from app.services.agents import LocalAgentService
 from app.services.benchmarking import BenchmarkService
 from app.services.educlawn import EduClawnService
+from app.services.education_growth import EducationGrowthService
 from app.services.education_os import EducationOperatingSystemService
 from app.services.experimentation import ExperimentationService
 from app.services.graph import KnowledgeGraphService
@@ -139,6 +141,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             template_registry=template_registry,
             ai_provider_service=ai_provider_service,
         )
+        studio_service.bind_education_service(education_service)
+        education_growth_service = EducationGrowthService(
+            settings=resolved_settings,
+            studio_service=studio_service,
+            education_service=education_service,
+            template_registry=template_registry,
+            ai_provider_service=ai_provider_service,
+        )
         educlawn_service = EduClawnService(
             settings=resolved_settings,
             education_service=education_service,
@@ -167,6 +177,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.studio_agent_runtime = studio_agent_runtime
         app.state.studio_service = studio_service
         app.state.education_service = education_service
+        app.state.education_growth_service = education_growth_service
         app.state.educlawn_service = educlawn_service
         app.state.planner_service = planner_service
         app.state.benchmark_service = benchmark_service
@@ -193,6 +204,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(ai_router)
     app.include_router(studio_router)
     app.include_router(education_router)
+    app.include_router(education_growth_router)
     app.include_router(educlawn_router)
     if resolved_settings.frontend_dist_dir.exists():
         app.mount(

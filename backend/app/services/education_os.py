@@ -513,6 +513,15 @@ class EducationOperatingSystemService:
                 "local_mode": assignment.get("local_mode", "no-llm"),
                 "ai_profile_id": assignment.get("ai_profile_id", ""),
                 "slug": f"{assignment['title']}-{student['name']}",
+                "classroom_context": {
+                    "classroom_id": classroom_id,
+                    "classroom_title": classroom["title"],
+                    "assignment_id": assignment_id,
+                    "assignment_title": assignment["title"],
+                    "student_id": student_id,
+                    "student_name": student["name"],
+                    "teacher_name": classroom["teacher_name"],
+                },
             }
         )
         project_slug = str(project["slug"])
@@ -770,6 +779,7 @@ class EducationOperatingSystemService:
             },
             system_prompt="You are a classroom-safe assistant inside EduClawn. Only produce educational guidance and do not propose uncontrolled external actions.",
             prompt=f"{context} User request: {prompt}",
+            classroom_id=str((assignment or {}).get("classroom_id") or (project or {}).get("classroom_context", {}).get("classroom_id") or ""),
         )
         return result
 

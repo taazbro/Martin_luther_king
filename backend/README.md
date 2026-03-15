@@ -13,9 +13,12 @@ FastAPI service for two parallel product layers:
 - knowledge-graph compilation from uploaded sources
 - agent artifact generation for research, planning, writing, citation, design, QA, teacher review, and export
 - static site, React scaffold, PDF, and zipped bundle export
+- export readiness gates for citation coverage, rubric thresholds, and pending approvals
 - optional local-LLM refinement via an Ollama-compatible endpoint
 - optional provider-AI runtime mode through encrypted local provider profiles
 - project compile augmentation for research, writing, review, and classroom-safe drafting
+- lesson-to-project conversion for teacher lesson plans
+- citation verification before export
 
 ## Existing MLK Intelligence Capabilities
 
@@ -57,8 +60,26 @@ Provider-backed execution is available in:
 - Studio projects with `local_mode=provider-ai`
 - Education assignments with `local_mode=provider-ai`
 - Education agent runs with an explicit `ai_profile_id` override
+- Education growth workflows through routed writing, feedback, planning, and assessment tasks
+
+The routing layer is now able to prefer:
+
+- OpenAI for writing and assignment drafting
+- Anthropic for feedback and review
+- Gemini for multimodal-oriented research
+- Groq for fast planning
+- local Ollama-compatible models first when hybrid mode can stay on-device
 
 Provider secrets are encrypted locally with `cryptography`/`AESGCM` using `EDUCLAWN_SECURITY_SECRET`.
+
+Provider operations now also support:
+
+- per-profile daily request limits
+- per-profile monthly budgets
+- per-classroom daily and monthly caps
+- classroom policy overrides for managed subscriptions
+- prompt and metadata redaction before outbound provider calls
+- fallback profile chains when the preferred provider fails
 
 ## Core Studio Endpoints
 
@@ -83,6 +104,36 @@ Provider secrets are encrypted locally with `cryptography`/`AESGCM` using `EDUCL
 - `DELETE /api/v1/ai/profiles/{profile_id}`
 - `POST /api/v1/ai/profiles/{profile_id}/test`
 - `GET /api/v1/ai/usage`
+- `GET /api/v1/ai/classroom-policies`
+- `GET /api/v1/ai/classroom-policies/{classroom_id}`
+- `PUT /api/v1/ai/classroom-policies/{classroom_id}`
+
+## Education Growth Endpoints
+
+- `GET /api/v1/edu/growth/overview`
+- `POST /api/v1/edu/growth/autopilot`
+- `POST /api/v1/edu/growth/revision-coach`
+- `GET /api/v1/edu/growth/library/{classroom_id}`
+- `POST /api/v1/edu/growth/library/{classroom_id}/promote`
+- `POST /api/v1/edu/growth/peer-review`
+- `GET /api/v1/edu/growth/peer-review`
+- `GET /api/v1/edu/growth/peer-review/pairs`
+- `POST /api/v1/edu/growth/peer-review/{review_id}/resolve`
+- `GET /api/v1/edu/growth/family-view`
+- `POST /api/v1/edu/growth/family-view/share`
+- `GET /api/v1/edu/growth/family-view/shared/{share_token}`
+- `POST /api/v1/edu/growth/citation-verify`
+- `POST /api/v1/edu/growth/lesson-to-project`
+- `POST /api/v1/edu/growth/rubric-train`
+- `GET /api/v1/edu/growth/standards-map`
+- `GET /api/v1/edu/growth/interventions`
+- `GET /api/v1/edu/growth/roster`
+- `GET /api/v1/edu/growth/assignment-status`
+- `GET /api/v1/edu/growth/replay`
+- `POST /api/v1/edu/growth/assessment-pack`
+- `GET /api/v1/edu/growth/marketplace`
+- `POST /api/v1/edu/growth/school-packs/{pack_id}/install`
+- `GET /api/v1/edu/growth/offline-school-edition`
 
 ## Important Environment Variables
 

@@ -181,6 +181,7 @@ export type AIProviderId =
   | 'xai'
 
 export type AIAuthMode = 'user-key' | 'managed-subscription'
+export type AIRedactionMode = 'off' | 'metadata-only' | 'pii-lite'
 
 export type AITaskCapability =
   | 'research'
@@ -214,6 +215,17 @@ export type AIProviderProfile = {
   default_model: string
   base_url: string
   capabilities: AITaskCapability[]
+  enabled: boolean
+  daily_request_limit: number
+  monthly_budget_usd: number
+  fallback_profile_ids: string[]
+  redaction_mode: AIRedactionMode
+  usage_cap_per_classroom_daily: number
+  managed_subscription_note: string
+  usage_summary: {
+    requests_today: number
+    spend_this_month_usd: number
+  }
   api_key_hint: string
   sdk_installed: boolean
   last_tested_at: string
@@ -234,6 +246,24 @@ export type AIProviderTestResponse = {
   model: string
   output_text: string
   error: string
+  effective_profile_id: string
+  effective_profile_label: string
+  classroom_id: string
+  fallback_used: boolean
+  estimated_cost_usd: number
+  redaction: Record<string, unknown>
+}
+
+export type AIClassroomPolicy = {
+  classroom_id: string
+  daily_request_limit: number
+  monthly_budget_usd: number
+  managed_subscription_allowed: boolean
+  allowed_profile_ids: string[]
+  redact_student_pii: boolean
+  notes: string
+  created_at: string
+  updated_at: string
 }
 
 export type AIUsageEntry = {
@@ -251,6 +281,10 @@ export type AIUsageEntry = {
   prompt_preview: string
   metadata: Record<string, unknown>
   created_at: string
+  classroom_id: string
+  estimated_cost_usd: number
+  redaction: Record<string, unknown>
+  fallback_used: boolean
 }
 
 export type StudioOverview = {
@@ -326,6 +360,7 @@ export type ProjectSummary = {
   export_count: number
   documents: ProjectDocument[]
   exports: ProjectExport[]
+  submission_readiness: Record<string, unknown>
   updated_at: string
 }
 
@@ -364,6 +399,9 @@ export type StudioProject = {
   plugin_ids: string[]
   template: Record<string, unknown>
   plugins: Array<Record<string, unknown>>
+  classroom_context: Record<string, unknown>
+  quality_gates: Record<string, unknown>
+  submission_readiness: Record<string, unknown>
 }
 
 export type StudioSearchResult = {
@@ -667,6 +705,222 @@ export type EducationLaunchResponse = {
   classroom: EducationClassroom
   project: StudioProject
   seeded_material_count: number
+}
+
+export type GrowthRouteDecision = {
+  task_kind: string
+  execution_mode: 'no-llm' | 'local-llm' | 'provider-ai'
+  required_capability: string
+  reason: string
+  selected_provider?: {
+    provider_id: string
+    provider_label: string
+    profile_id: string
+    profile_label: string
+    auth_mode: string
+    model: string
+  } | null
+  local_available: boolean
+  provider_available: boolean
+}
+
+export type CitationVerification = {
+  ready_for_export: boolean
+  overall_score: number
+  verified_claims: Array<Record<string, unknown>>
+  blocked_claims: Array<Record<string, unknown>>
+}
+
+export type AssessmentPack = {
+  assignment_id: string
+  assignment_title: string
+  route: GrowthRouteDecision
+  quiz_questions: Array<Record<string, unknown>>
+  discussion_prompts: string[]
+  exit_tickets: string[]
+  differentiated_supports: Array<Record<string, unknown>>
+  teacher_note: string
+}
+
+export type StandardsMap = {
+  classroom_id: string
+  assignment_id: string
+  assignment_title: string
+  standards_alignment: Array<Record<string, unknown>>
+  district_rubric_map: Array<Record<string, unknown>>
+  teacher_moves: string[]
+}
+
+export type AssignmentAutopilotResponse = {
+  classroom: EducationClassroom
+  assignment: EducationAssignment
+  route: GrowthRouteDecision
+  evidence_pack: EducationMaterial[]
+  checkpoints: Array<Record<string, unknown>>
+  export_targets: string[]
+  assessment_pack: AssessmentPack
+  standards_map: StandardsMap
+  lesson_to_project_scaffold: Record<string, unknown>
+  teacher_summary: string
+}
+
+export type RevisionCoachResponse = {
+  route: GrowthRouteDecision
+  rubric_breakdown: Array<Record<string, unknown>>
+  citation_verification: CitationVerification
+  revision_tasks: string[]
+  student_summary: string
+  family_summary: string
+}
+
+export type ClassroomLibrary = {
+  classroom_id: string
+  teacher_name: string
+  item_count: number
+  collections: Array<Record<string, unknown>>
+  reusable_items: Array<Record<string, unknown>>
+  recommended_reuse: Array<Record<string, unknown>>
+}
+
+export type PeerReview = {
+  review_id: string
+  classroom_id: string
+  assignment_id: string
+  project_slug: string
+  reviewer_student_id: string
+  reviewer_name: string
+  target_student_id: string
+  target_student_name: string
+  status: string
+  summary: string
+  rubric_guided_comments: Array<Record<string, unknown>>
+  created_at: string
+  resolved_at: string
+  moderator: string
+  note: string
+  approval_id: string
+}
+
+export type PeerReviewPairings = {
+  classroom_id: string
+  assignment_id: string
+  assignment_title: string
+  pair_count: number
+  pairs: Array<Record<string, unknown>>
+}
+
+export type FamilyView = {
+  classroom_id: string
+  classroom_title: string
+  project_slug: string
+  project_title: string
+  student_name: string
+  assignment_title: string
+  summary: string
+  progress: Record<string, unknown>
+  teacher_comments: Array<Record<string, unknown>>
+  next_steps: string[]
+  downloads: ProjectExport[]
+  share_link: string
+}
+
+export type FamilyShareLink = {
+  share_token: string
+  classroom_id: string
+  project_slug: string
+  project_title: string
+  created_at: string
+  share_url: string
+}
+
+export type LessonToProjectResponse = {
+  project: StudioProject
+  route: GrowthRouteDecision
+  scaffold: Record<string, unknown>
+}
+
+export type RubricTrainResponse = {
+  model_id: string
+  classroom_id: string
+  created_at: string
+  trained_on_projects: string[]
+  criterion_patterns: Array<Record<string, unknown>>
+  quality_signals: string[]
+}
+
+export type InterventionDashboard = {
+  classroom_id: string
+  classroom_title: string
+  summary: Record<string, unknown>
+  student_signals: Array<Record<string, unknown>>
+  interventions: string[]
+}
+
+export type ClassroomRoster = {
+  classroom_id: string
+  classroom_title: string
+  students: Array<Record<string, unknown>>
+  summary: Record<string, number>
+}
+
+export type ClassroomReplay = {
+  classroom_id: string
+  classroom_title: string
+  counts: Record<string, number>
+  timeline: Array<Record<string, unknown>>
+}
+
+export type AssignmentStatusBoard = {
+  classroom_id: string
+  classroom_title: string
+  assignments: Array<Record<string, unknown>>
+}
+
+export type MarketplaceSchoolPack = {
+  pack_id: string
+  label: string
+  audience: string
+  description: string
+  recommended_template_ids: string[]
+  sample_project_slug: string
+  plugin_ids: string[]
+  offline_ready: boolean
+  installed: boolean
+  installed_at: string
+  manifest_path: string
+}
+
+export type MarketplaceResponse = {
+  templates: StudioTemplate[]
+  sample_projects: StudioSampleProject[]
+  plugins: StudioPlugin[]
+  school_packs: MarketplaceSchoolPack[]
+  plugin_sdk: Record<string, unknown>
+  offline_school_edition: Record<string, unknown>
+}
+
+export type SchoolPackInstallResponse = {
+  pack_id: string
+  label: string
+  installed_at: string
+  manifest_path: string
+  created_samples: string[]
+  recommended_templates: string[]
+}
+
+export type OfflineSchoolEdition = {
+  edition_name: string
+  readiness_score: number
+  supported_modes: string[]
+  local_capabilities: Record<string, boolean>
+  recommended_rollout: string[]
+  installed_assets: string[]
+}
+
+export type EducationGrowthOverview = {
+  counts: Record<string, number>
+  routing_matrix: Array<Record<string, unknown>>
+  offline_school_edition: OfflineSchoolEdition
 }
 
 export type EduClawnSourceSummary = {

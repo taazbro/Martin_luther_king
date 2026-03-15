@@ -1,27 +1,45 @@
 import type {
   AdminStatusResponse,
+  AIClassroomPolicy,
   AIProviderCatalogEntry,
   AIProviderProfile,
   AIProviderTestResponse,
   AIUsageEntry,
+  AssignmentStatusBoard,
   AuthTokenResponse,
   BenchmarkReportResponse,
+  ClassroomLibrary,
+  ClassroomRoster,
+  ClassroomReplay,
   EducationAgentCatalogEntry,
   EducationAgentRunResponse,
   EducationApproval,
   EducationAuditResponse,
   EducationClassroom,
+  EducationGrowthOverview,
   EducationLaunchResponse,
   EducationMaterial,
   EducationOverview,
   EducationSafetyStatus,
   EduClawnBootstrapResponse,
   EduClawnOverview,
+  FamilyShareLink,
+  FamilyView,
   EduClawnSourceSummary,
   HealthStatus,
+  InterventionDashboard,
+  LessonToProjectResponse,
+  MarketplaceResponse,
+  OfflineSchoolEdition,
+  PeerReview,
+  PeerReviewPairings,
   ProjectDocument,
   ProjectSummary,
+  RevisionCoachResponse,
+  RubricTrainResponse,
+  SchoolPackInstallResponse,
   StudioSystemStatus,
+  StandardsMap,
   StudioAgentCatalogEntry,
   StudioArtifactBundle,
   StudioCompileResponse,
@@ -30,6 +48,9 @@ import type {
   StudioProject,
   StudioSearchResult,
   StudioTemplate,
+  AssignmentAutopilotResponse,
+  AssessmentPack,
+  CitationVerification,
 } from './types'
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
@@ -105,6 +126,13 @@ export const api = {
     default_model: string
     base_url: string
     capabilities: string[]
+    enabled?: boolean
+    daily_request_limit?: number
+    monthly_budget_usd?: number
+    fallback_profile_ids?: string[]
+    redaction_mode?: 'off' | 'metadata-only' | 'pii-lite'
+    usage_cap_per_classroom_daily?: number
+    managed_subscription_note?: string
   }) =>
     request<AIProviderProfile>('/api/v1/ai/profiles', {
       method: 'POST',
@@ -117,6 +145,13 @@ export const api = {
     default_model?: string
     base_url?: string
     capabilities?: string[]
+    enabled?: boolean
+    daily_request_limit?: number
+    monthly_budget_usd?: number
+    fallback_profile_ids?: string[]
+    redaction_mode?: 'off' | 'metadata-only' | 'pii-lite'
+    usage_cap_per_classroom_daily?: number
+    managed_subscription_note?: string
   }) =>
     request<AIProviderProfile>(`/api/v1/ai/profiles/${encodeURIComponent(profileId)}`, {
       method: 'PUT',
@@ -131,6 +166,24 @@ export const api = {
       method: 'POST',
     }),
   aiUsage: () => request<AIUsageEntry[]>('/api/v1/ai/usage'),
+  aiClassroomPolicies: () => request<AIClassroomPolicy[]>('/api/v1/ai/classroom-policies'),
+  aiClassroomPolicy: (classroomId: string) =>
+    request<AIClassroomPolicy>(`/api/v1/ai/classroom-policies/${encodeURIComponent(classroomId)}`),
+  updateAiClassroomPolicy: (
+    classroomId: string,
+    payload: {
+      daily_request_limit: number
+      monthly_budget_usd: number
+      managed_subscription_allowed: boolean
+      allowed_profile_ids: string[]
+      redact_student_pii: boolean
+      notes: string
+    },
+  ) =>
+    request<AIClassroomPolicy>(`/api/v1/ai/classroom-policies/${encodeURIComponent(classroomId)}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
   login: (payload: { username: string; password: string }) =>
     request<AuthTokenResponse>('/api/v1/auth/login', {
       method: 'POST',
@@ -161,6 +214,150 @@ export const api = {
       `/api/v1/edu/audit?classroom_id=${encodeURIComponent(classroomId)}&access_key=${encodeURIComponent(accessKey)}`,
     ),
   educationSafety: () => request<EducationSafetyStatus>('/api/v1/edu/safety'),
+  educationGrowthOverview: () => request<EducationGrowthOverview>('/api/v1/edu/growth/overview'),
+  assignmentAutopilot: (payload: {
+    classroom_id: string
+    access_key: string
+    topic: string
+    title?: string
+    summary?: string
+    audience?: string
+    template_id?: string
+    goals?: string[]
+    rubric?: string[]
+    standards?: string[]
+    lesson_seed?: string
+    due_date?: string
+    local_mode?: 'no-llm' | 'local-llm' | 'provider-ai'
+    ai_profile_id?: string
+  }) =>
+    request<AssignmentAutopilotResponse>('/api/v1/edu/growth/autopilot', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  revisionCoach: (payload: {
+    classroom_id: string
+    assignment_id: string
+    access_key: string
+    draft_text: string
+    rubric?: string[]
+    teacher_feedback?: string[]
+    project_slug?: string
+    ai_profile_id?: string
+  }) =>
+    request<RevisionCoachResponse>('/api/v1/edu/growth/revision-coach', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  classroomLibrary: (classroomId: string, accessKey: string) =>
+    request<ClassroomLibrary>(
+      `/api/v1/edu/growth/library/${encodeURIComponent(classroomId)}?access_key=${encodeURIComponent(accessKey)}`,
+    ),
+  promoteClassroomLibrary: (classroomId: string, payload: { access_key: string; material_ids: string[] }) =>
+    request<ClassroomLibrary>(`/api/v1/edu/growth/library/${encodeURIComponent(classroomId)}/promote`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  createPeerReview: (payload: {
+    classroom_id: string
+    assignment_id: string
+    reviewer_student_id: string
+    target_student_id: string
+    access_key: string
+    draft_text: string
+    rubric?: string[]
+    project_slug?: string
+  }) =>
+    request<PeerReview>('/api/v1/edu/growth/peer-review', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  listPeerReviews: (classroomId: string, accessKey: string) =>
+    request<PeerReview[]>(
+      `/api/v1/edu/growth/peer-review?classroom_id=${encodeURIComponent(classroomId)}&access_key=${encodeURIComponent(accessKey)}`,
+    ),
+  peerReviewPairs: (classroomId: string, assignmentId: string, accessKey: string) =>
+    request<PeerReviewPairings>(
+      `/api/v1/edu/growth/peer-review/pairs?classroom_id=${encodeURIComponent(classroomId)}&assignment_id=${encodeURIComponent(assignmentId)}&access_key=${encodeURIComponent(accessKey)}`,
+    ),
+  resolvePeerReview: (
+    reviewId: string,
+    payload: { decision: 'approved' | 'rejected'; reviewer: string; note: string; access_key: string },
+  ) =>
+    request<PeerReview>(`/api/v1/edu/growth/peer-review/${encodeURIComponent(reviewId)}/resolve`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  familyView: (classroomId: string, projectSlug: string, accessKey: string) =>
+    request<FamilyView>(
+      `/api/v1/edu/growth/family-view?classroom_id=${encodeURIComponent(classroomId)}&project_slug=${encodeURIComponent(projectSlug)}&access_key=${encodeURIComponent(accessKey)}`,
+    ),
+  createFamilyShareLink: (classroomId: string, projectSlug: string, accessKey: string) =>
+    request<FamilyShareLink>(
+      `/api/v1/edu/growth/family-view/share?classroom_id=${encodeURIComponent(classroomId)}&project_slug=${encodeURIComponent(projectSlug)}&access_key=${encodeURIComponent(accessKey)}`,
+      { method: 'POST' },
+    ),
+  sharedFamilyView: (shareToken: string) =>
+    request<FamilyView>(`/api/v1/edu/growth/family-view/shared/${encodeURIComponent(shareToken)}`),
+  citationVerify: (payload: { project_slug?: string; claims: string[] }) =>
+    request<CitationVerification>('/api/v1/edu/growth/citation-verify', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  lessonToProject: (payload: {
+    lesson_plan: string
+    title?: string
+    topic?: string
+    audience?: string
+    goals?: string[]
+    rubric?: string[]
+    template_id?: string
+    local_mode?: 'no-llm' | 'local-llm' | 'provider-ai'
+    ai_profile_id?: string
+    classroom_id?: string
+    access_key?: string
+    seed_from_classroom?: boolean
+  }) =>
+    request<LessonToProjectResponse>('/api/v1/edu/growth/lesson-to-project', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  rubricTrain: (payload: { classroom_id: string; access_key: string; project_slugs?: string[] }) =>
+    request<RubricTrainResponse>('/api/v1/edu/growth/rubric-train', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  standardsMap: (classroomId: string, assignmentId: string, accessKey: string) =>
+    request<StandardsMap>(
+      `/api/v1/edu/growth/standards-map?classroom_id=${encodeURIComponent(classroomId)}&assignment_id=${encodeURIComponent(assignmentId)}&access_key=${encodeURIComponent(accessKey)}`,
+    ),
+  interventionDashboard: (classroomId: string, accessKey: string) =>
+    request<InterventionDashboard>(
+      `/api/v1/edu/growth/interventions?classroom_id=${encodeURIComponent(classroomId)}&access_key=${encodeURIComponent(accessKey)}`,
+    ),
+  classroomRoster: (classroomId: string, accessKey: string) =>
+    request<ClassroomRoster>(
+      `/api/v1/edu/growth/roster?classroom_id=${encodeURIComponent(classroomId)}&access_key=${encodeURIComponent(accessKey)}`,
+    ),
+  assignmentStatusBoard: (classroomId: string, accessKey: string) =>
+    request<AssignmentStatusBoard>(
+      `/api/v1/edu/growth/assignment-status?classroom_id=${encodeURIComponent(classroomId)}&access_key=${encodeURIComponent(accessKey)}`,
+    ),
+  classroomReplay: (classroomId: string, accessKey: string) =>
+    request<ClassroomReplay>(
+      `/api/v1/edu/growth/replay?classroom_id=${encodeURIComponent(classroomId)}&access_key=${encodeURIComponent(accessKey)}`,
+    ),
+  assessmentPack: (payload: { classroom_id: string; assignment_id: string; access_key: string; ai_profile_id?: string }) =>
+    request<AssessmentPack>('/api/v1/edu/growth/assessment-pack', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  marketplace: () => request<MarketplaceResponse>('/api/v1/edu/growth/marketplace'),
+  installSchoolPack: (packId: string) =>
+    request<SchoolPackInstallResponse>(`/api/v1/edu/growth/school-packs/${encodeURIComponent(packId)}/install`, {
+      method: 'POST',
+    }),
+  offlineSchoolEdition: () => request<OfflineSchoolEdition>('/api/v1/edu/growth/offline-school-edition'),
   educlawnOverview: () => request<EduClawnOverview>('/api/v1/educlawn/overview'),
   educlawnSource: () => request<EduClawnSourceSummary>('/api/v1/educlawn/source'),
   educlawnBootstrap: (payload: {
